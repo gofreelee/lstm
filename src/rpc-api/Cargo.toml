@@ -1,0 +1,14 @@
+[package]
+name = "mica-rpc-api"
+description = "API definitions of MICA"
+version = "0.1.0"
+authors = ["Haohui Mai <haohui@alt-chain.io>"]
+edition = "2018"
+
+[dependencies]
+log = "0.4"
+tonic = "0.4.0"
+prost = "0.7"
+
+[build-dependencies]
+tonic-build = { version ="0.4.0", features = ["prost"] } 

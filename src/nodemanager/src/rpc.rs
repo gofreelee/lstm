@@ -40,7 +40,7 @@ impl NodeManagerService for NodeManagerServerStub {
 
 impl NodeManagerServerImpl {
 	pub async fn start(&self, listener: TcpListener) -> Result<(), Box<dyn std::error::Error>> {
-        let mut state = self.state.write().unwrap();
+		let mut state = self.state.write().unwrap();
 		state.local_addr = *&listener.local_addr().unwrap();
 		let incoming = tokio_stream::wrappers::TcpListenerStream::new(
 			tokio::net::TcpListener::from_std(listener)?,
@@ -62,7 +62,7 @@ pub(crate) fn new_node_manager(conf: Configuration) -> Arc<NodeManagerServerImpl
 	});
 	let this = Arc::new(NodeManagerServerImpl {
 		me: WeakSelf::default(),
-        state: state,
+		state: state,
 	});
 	this.me.init(&this);
 	return this;

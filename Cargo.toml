@@ -10,6 +10,7 @@ env_logger = "0.8.2"
 log = "0.4"
 mica-nodemanager = {path = "src/nodemanager"}
 mica-rpc-api = {path = "src/rpc-api"}
+mica-dataplane-gpu = {path = "src/dataplane-gpu"}
 prost = "0.7"
 prost-types = "0.7"
 tokio = {version = "1.2", features = ["rt-multi-thread", "time", "fs", "macros", "net"]}

@@ -11,6 +11,7 @@ pub enum BlobType {
 
 #[repr(u32)]
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum GPUType {
 	Unknown,
 	AMD,

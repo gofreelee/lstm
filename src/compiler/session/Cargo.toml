@@ -1,0 +1,10 @@
+[package]
+authors = ["Haohui Mai <haohui@alt-chain.io>"]
+edition = "2018"
+name = "mica-compiler-session"
+version = "0.1.0"
+
+[dependencies]
+mica-compiler-span = {path = "../span"}
+rustc_data_structures = {package = "rustc-ap-rustc_data_structures", version = "707.0.0"}
+rustc_errors = {package = "rustc-ap-rustc_errors", version = "707.0.0"}

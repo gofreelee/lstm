@@ -1,0 +1,17 @@
+[package]
+authors = ["Haohui Mai <haohui@alt-chain.io>"]
+edition = "2018"
+name = "mica-compiler-parser"
+version = "0.1.0"
+
+[dependencies]
+mica-compiler-ast = {path = "../ast"}
+mica-compiler-pprust = {path = "../pprust"}
+mica-compiler-session = {path = "../session"}
+mica-compiler-span = {path = "../span"}
+rustc_data_structures = {package = "rustc-ap-rustc_data_structures", version = "707.0.0"}
+rustc_errors = {package = "rustc-ap-rustc_errors", version = "707.0.0"}
+rustc_lexer = {package = "rustc-ap-rustc_lexer", version = "707.0.0"}
+#rustc_parse = {package = "rustc-ap-rustc_parse", version = "707.0.0"}
+tracing = "0.1"
+unicode-normalization = "0.1.11"

@@ -1,0 +1,9 @@
+[package]
+authors = ["Haohui Mai <haohui@alt-chain.io>"]
+edition = "2018"
+name = "mica-compiler-pprust"
+version = "0.1.0"
+
+[dependencies]
+mica-compiler-ast = {path = "../ast"}
+mica-compiler-span= {path = "../span"}

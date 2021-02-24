@@ -1,0 +1,4 @@
+fn foo() {
+    syncthreads();
+    syncwarp();
+}

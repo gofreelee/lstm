@@ -58,6 +58,7 @@ pub enum TokenKind {
 	EqEq,
 	Ne,
 	Ge,
+	Pound,
 	Gt,
 	AndAnd,
 	OrOr,
@@ -193,8 +194,8 @@ impl Token {
 			},
 
 			Dot | Le | EqEq | Ne | Ge | AndAnd | OrOr | Tilde | BinOpEq(..) | Comma | Semi
-			| ModSep | Question | OpenDelim(..) | CloseDelim(..) | Literal(..) | Ident(..)
-			| DocComment(..) | Eof => return None,
+			| ModSep | Pound | Question | OpenDelim(..) | CloseDelim(..) | Literal(..)
+			| Ident(..) | DocComment(..) | Eof => return None,
 		};
 
 		Some(Token::new(kind, self.span.to(joint.span)))

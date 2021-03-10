@@ -1,9 +1,9 @@
+use crate::token::Lit;
 use mica_compiler_span::symbol::kw;
 use mica_compiler_span::{symbol::Ident, Span};
 pub use rustc_ast::node_id::DUMMY_NODE_ID;
 pub use rustc_ast::ptr::P;
 pub use rustc_ast::{node_id::NodeId, AttrStyle};
-
 /// The various kinds of type recognized by the compiler.
 #[derive(Clone, Debug)]
 pub enum TyKind {
@@ -97,4 +97,26 @@ impl PathSegment {
 	pub fn path_root(span: Span) -> Self {
 		PathSegment::from_ident(Ident::new(kw::PathRoot, span))
 	}
+}
+
+/// will be used to prestent
+#[derive(Clone, Debug)]
+pub struct Attribute {
+	pub ident: Ident,
+	pub span: Span,
+	pub attr_params: Vec<AttrParam>,
+	pub id: NodeId,
+}
+
+#[derive(Clone, Debug)]
+pub struct AttrParam {
+	pub param_content: ParamContent,
+	pub id: NodeId,
+}
+
+#[derive(Clone, Debug)]
+pub enum ParamContent {
+	ident(Ident),
+	literal(Lit),
+	None,
 }

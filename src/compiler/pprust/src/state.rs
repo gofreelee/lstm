@@ -75,6 +75,7 @@ fn token_kind_to_string_ext(tok: &TokenKind) -> String {
 		TokenKind::Ge => ">=".to_string(),
 		TokenKind::Gt => ">".to_string(),
 		TokenKind::Not => "!".to_string(),
+		TokenKind::Pound => "#".to_string(),
 		TokenKind::Tilde => "~".to_string(),
 		TokenKind::OrOr => "||".to_string(),
 		TokenKind::AndAnd => "&&".to_string(),

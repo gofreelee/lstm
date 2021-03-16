@@ -1,6 +1,7 @@
 use clap::{App, Arg};
 use mica_compiler_interface::compile_to_ast;
 use std::path::Path;
+mod test;
 
 fn main() {
 	let matches = App::new("The MICA compiler")

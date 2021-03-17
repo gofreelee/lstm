@@ -1,3 +1,4 @@
+mod attribute;
 mod diagnostics;
 mod item;
 mod path;
@@ -12,7 +13,6 @@ use mica_compiler_span::symbol::{Ident, Symbol};
 use mica_compiler_span::DUMMY_SP;
 use rustc_errors::PResult;
 use std::{mem, slice};
-
 pub struct Parser<'a> {
 	pub sess: &'a ParseSess,
 	pub prev_token: Token,

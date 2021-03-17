@@ -4,6 +4,8 @@ use mica_compiler_span::{symbol::Ident, Span};
 pub use rustc_ast::node_id::DUMMY_NODE_ID;
 pub use rustc_ast::ptr::P;
 pub use rustc_ast::{node_id::NodeId, AttrStyle};
+
+pub type FunctionParam = StructField;
 /// The various kinds of type recognized by the compiler.
 #[derive(Clone, Debug)]
 pub enum TyKind {
@@ -30,7 +32,7 @@ pub struct StructField {
 
 #[derive(Clone, Debug)]
 pub enum ItemKind {
-	Fn,
+	Fn(Function),
 	Enum,
 	Struct(Vec<StructField>),
 }
@@ -50,6 +52,7 @@ pub struct Item<K = ItemKind> {
 	/// It might be a dummy name in case of anonymous items.
 	pub ident: Ident,
 	pub kind: K,
+	pub attributes: Vec<P<Attribute>>,
 }
 
 /// A "Path" is essentially Rust's notion of a name.
@@ -120,3 +123,13 @@ pub enum ParamContent {
 	literal(Lit),
 	None,
 }
+
+#[derive(Clone, Debug)]
+pub struct Function {
+	pub func_name: Ident,
+	pub params: Vec<FunctionParam>,
+	pub function_body: Vec<Statement>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Statement {}

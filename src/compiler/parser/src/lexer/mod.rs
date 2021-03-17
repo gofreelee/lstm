@@ -77,14 +77,12 @@ impl<'a> StringReader<'a> {
 		loop {
 			let start_src_index = self.src_index(self.pos);
 			let text: &str = &self.src[start_src_index..self.end_src_index];
-
 			if text.is_empty() {
 				let span = self.mk_sp(self.pos, self.pos);
 				return (spacing, Token::new(TokenKind::Eof, span));
 			}
 
 			let token = rustc_lexer::first_token(text);
-
 			let start = self.pos;
 			self.pos = self.pos + BytePos::from_usize(token.len);
 
@@ -93,7 +91,8 @@ impl<'a> StringReader<'a> {
 			match self.cook_lexer_token(token.kind, start) {
 				Some(kind) => {
 					let span = self.mk_sp(start, self.pos);
-					return (spacing, Token::new(kind, span));
+					let token = Token::new(kind, span);
+					return (spacing, token);
 				}
 				None => spacing = Spacing::Alone,
 			}
@@ -251,7 +250,7 @@ impl<'a> StringReader<'a> {
 				token::TokenKind::CloseDelim(token::DelimToken::Bracket)
 			}
 			rustc_lexer::TokenKind::At => return None,
-			rustc_lexer::TokenKind::Pound => return None,
+			rustc_lexer::TokenKind::Pound => token::TokenKind::Pound,
 			rustc_lexer::TokenKind::Question => return None,
 			rustc_lexer::TokenKind::Dollar => return None,
 			rustc_lexer::TokenKind::Tilde => token::TokenKind::Tilde,

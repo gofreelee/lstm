@@ -99,7 +99,6 @@ pub fn maybe_file_to_stream(
 			source_file.name
 		));
 	});
-
 	let (token_trees, _unmatched_braces) =
 		lexer::parse_token_trees(sess, src.as_str(), source_file.start_pos, None);
 

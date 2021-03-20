@@ -119,8 +119,8 @@ pub struct AttrParam {
 
 #[derive(Clone, Debug)]
 pub enum ParamContent {
-	ident(Ident),
-	literal(Lit),
+	Ident(Ident),
+	Literal(Lit),
 	None,
 }
 

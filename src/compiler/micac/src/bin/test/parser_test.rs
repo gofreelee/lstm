@@ -1,6 +1,3 @@
-use clap::{App, Arg};
-use mica_compiler_interface::compile_to_ast;
-use std::path::Path;
 #[cfg(test)]
 mod parser_test {
 	#[test]
@@ -10,7 +7,7 @@ mod parser_test {
 		assert!(mica_compiler_interface::compile_to_ast(
 			&path.as_path(),
 			|ast| match ast {
-				Err(mut diag) => return false,
+				Err(_diag) => return false,
 				Ok(_) => return true,
 			}
 		));
@@ -23,7 +20,7 @@ mod parser_test {
 		assert!(mica_compiler_interface::compile_to_ast(
 			&path.as_path(),
 			|ast| match ast {
-				Err(mut diag) => return false,
+				Err(_diag) => return false,
 				Ok(_) => return true,
 			}
 		));
@@ -37,7 +34,7 @@ mod parser_test {
 		assert!(mica_compiler_interface::compile_to_ast(
 			&path.as_path(),
 			|ast| match ast {
-				Err(mut diag) => return false,
+				Err(_diag) => return false,
 				Ok(_) => return true,
 			}
 		));

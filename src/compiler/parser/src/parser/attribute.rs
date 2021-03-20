@@ -65,11 +65,11 @@ impl<'a> Parser<'a> {
 			TokenKind::Literal(literal_param) => {
 				// let literal_param = TokenKind::Literal(self.token.kind);
 				self.bump();
-				ParamContent::literal(literal_param)
+				ParamContent::Literal(literal_param)
 			}
-			TokenKind::Ident(symbol_name, flag) => {
+			TokenKind::Ident(_symbol_name, _flag) => {
 				let ident_param = self.parse_ident()?;
-				ParamContent::ident(ident_param)
+				ParamContent::Ident(ident_param)
 			}
 			_ => ParamContent::None,
 		};

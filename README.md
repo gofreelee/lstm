@@ -14,7 +14,6 @@ To build MICA, simply type the following command:
 cargo +nightly build --release
 ```
 
+## Coding styles
 
-
-
-
+The project is implemented in both Rust and C++. Please follow the [Google C++ Style Guide](https://google.github.io/styleguide/cppguide.html) when implementing features in C++. 

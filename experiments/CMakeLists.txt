@@ -8,7 +8,7 @@ FetchContent_MakeAvailable(SetupHunter)
 
 set(CMAKE_BUILD_TYPE_INIT Release)
 
-project(mica_experiments)
+project(mica_experiments LANGUAGES CUDA CXX)
 enable_testing()
 
 set(CMAKE_CXX_STANDARD 17)
@@ -18,3 +18,4 @@ find_package(absl CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 
 add_subdirectory(lstm)
+add_subdirectory(resnet50)

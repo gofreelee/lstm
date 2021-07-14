@@ -628,3 +628,90 @@ operator_fuse_conv_bn_relu_h<512, 4608, 49, 1, 1, 1, 512, 7, 7, true>(
     Tensor<((1) * (512)) * (4608)> const *,
     Tensor<((1) * (49)) * (4608)> const *,
     Tensor<(((1) * (512)) * (49)) * (1)> *, BatchNormParam<512> const *);
+
+template __global__ void
+    im2col_h<1, 224, 224, 3, 48, 11, 11, 2, 2, 4, 4, true, 150528, 1098075>(
+        Tensor<150528> const *, Tensor<1098075> *);
+template __global__ void
+operator_fuse_matmul_relu_h<48, 363, 3025, 1, 1, 1, true>(
+    Tensor<((1) * (48)) * (363)> const *,
+    Tensor<((1) * (3025)) * (363)> const *,
+    Tensor<(((1) * (48)) * (3025)) * (1)> *);
+template __global__ void
+    operator_max_pool_h<1, 48, 55, 55, 3, 3, 0, 0, 2, 2, 145200, 34992>(
+        Tensor<145200> const *, AvgPoolState<34992> *);
+template __global__ void
+    im2col_h<1, 27, 27, 48, 128, 5, 5, 2, 2, 1, 1, true, 34992, 874800>(
+        Tensor<34992> const *, Tensor<874800> *);
+template __global__ void
+operator_fuse_matmul_relu_h<128, 1200, 729, 1, 1, 1, true>(
+    Tensor<((1) * (128)) * (1200)> const *,
+    Tensor<((1) * (729)) * (1200)> const *,
+    Tensor<(((1) * (128)) * (729)) * (1)> *);
+template __global__ void
+    operator_max_pool_h<1, 128, 27, 27, 3, 3, 0, 0, 2, 2, 93312, 21632>(
+        Tensor<93312> const *, AvgPoolState<21632> *);
+template __global__ void
+    im2col_h<1, 13, 13, 128, 192, 3, 3, 1, 1, 1, 1, true, 21632, 194688>(
+        Tensor<21632> const *, Tensor<194688> *);
+template __global__ void
+operator_fuse_matmul_relu_h<192, 1152, 169, 1, 1, 1, true>(
+    Tensor<((1) * (192)) * (1152)> const *,
+    Tensor<((1) * (169)) * (1152)> const *,
+    Tensor<(((1) * (192)) * (169)) * (1)> *);
+template __global__ void
+    im2col_h<1, 13, 13, 192, 192, 3, 3, 1, 1, 1, 1, true, 32448, 292032>(
+        Tensor<32448> const *, Tensor<292032> *);
+template __global__ void
+operator_fuse_matmul_relu_h<192, 1728, 169, 1, 1, 1, true>(
+    Tensor<((1) * (192)) * (1728)> const *,
+    Tensor<((1) * (169)) * (1728)> const *,
+    Tensor<(((1) * (192)) * (169)) * (1)> *);
+template __global__ void
+    im2col_h<1, 13, 13, 192, 128, 3, 3, 1, 1, 1, 1, true, 32448, 292032>(
+        Tensor<32448> const *, Tensor<292032> *);
+template __global__ void
+operator_fuse_matmul_relu_h<128, 1728, 169, 1, 1, 1, true>(
+    Tensor<((1) * (128)) * (1728)> const *,
+    Tensor<((1) * (169)) * (1728)> const *,
+    Tensor<(((1) * (128)) * (169)) * (1)> *);
+template __global__ void
+    operator_max_pool_h<1, 128, 13, 13, 3, 3, 0, 0, 2, 2, 21632, 4608>(
+        Tensor<21632> const *, AvgPoolState<4608> *);
+template __global__ void
+operator_fuse_matmul_bias_relu_h<1, 4608, 2048, 0, 1, 1, true>(
+    Tensor<((1) * (1)) * (4608)> const *,
+    Tensor<((1) * (2048)) * (4608)> const *,
+    Tensor<(((1) * (1)) * (2048)) * (1)> *,
+    Tensor<(((1) * (1)) * (2048)) * (1)> const *);
+template __global__ void
+operator_fuse_matmul_bias_relu_h<1, 2048, 2048, 0, 1, 1, true>(
+    Tensor<((1) * (1)) * (2048)> const *,
+    Tensor<((1) * (2048)) * (2048)> const *,
+    Tensor<(((1) * (1)) * (2048)) * (1)> *,
+    Tensor<(((1) * (1)) * (2048)) * (1)> const *);
+template __global__ void
+operator_fuse_conv_bias_relu_h<48, 363, 3025, 1, 1, 1, true>(
+    Tensor<((1) * (48)) * (363)> const *,
+    Tensor<((1) * (3025)) * (363)> const *,
+    Tensor<(((1) * (48)) * (3025)) * (1)> *, Tensor<48> const *);
+template __global__ void
+operator_fuse_conv_bias_relu_h<128, 1200, 729, 1, 1, 1, true>(
+    Tensor<((1) * (128)) * (1200)> const *,
+    Tensor<((1) * (729)) * (1200)> const *,
+    Tensor<(((1) * (128)) * (729)) * (1)> *, Tensor<128> const *);
+template __global__ void
+operator_fuse_conv_bias_relu_h<192, 1152, 169, 1, 1, 1, true>(
+    Tensor<((1) * (192)) * (1152)> const *,
+    Tensor<((1) * (169)) * (1152)> const *,
+    Tensor<(((1) * (192)) * (169)) * (1)> *, Tensor<192> const *);
+template __global__ void
+operator_fuse_conv_bias_relu_h<192, 1728, 169, 1, 1, 1, true>(
+    Tensor<((1) * (192)) * (1728)> const *,
+    Tensor<((1) * (169)) * (1728)> const *,
+    Tensor<(((1) * (192)) * (169)) * (1)> *, Tensor<192> const *);
+template __global__ void
+operator_fuse_conv_bias_relu_h<128, 1728, 169, 1, 1, 1, true>(
+    Tensor<((1) * (128)) * (1728)> const *,
+    Tensor<((1) * (169)) * (1728)> const *,
+    Tensor<(((1) * (128)) * (169)) * (1)> *, Tensor<128> const *);

@@ -16,6 +16,7 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
         kInputSize = kBatchSize * kAlexnetImageChannel * kAlexnetImageHeight *
                      kAlexnetImageWidth,
         kSize = kBatchSize * kNumClass,
+        kGroupSize = 1,
 
         kConv1FilterHW = 11,
         kConv1Padding = 2,
@@ -113,7 +114,7 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
             Conv<kBatchSize, kAlexnetImageHeight, kAlexnetImageHeight,
                  kAlexnetImageChannel, kConv1ChannelOut, kConv1FilterHW,
                  kConv1FilterHW, kConv1Padding, kConv1Padding, kConv1StrideHW,
-                 kConv1StrideHW, true, false, true>>::StateType
+                 kConv1StrideHW, true, false, true, kGroupSize>>::StateType
             fuse_conv1_bias_relu_state;
         typename StateTraits<MaxPool<
             kBatchSize, kMaxpool1ChannelIn, kMaxpool1InputHW, kMaxpool1InputHW,
@@ -124,7 +125,8 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
             Conv<kBatchSize, kConv2InputHW, kConv2InputHW, kConv2ChannelIn,
                  kConv2ChannelOut, kConv2FilterHW, kConv2FilterHW,
                  kConv2Padding, kConv2Padding, kConv2StrideHW, kConv2StrideHW,
-                 true, false, true>>::StateType fuse_conv2_bias_relu_state;
+                 true, false, true, kGroupSize>>::StateType
+            fuse_conv2_bias_relu_state;
         typename StateTraits<MaxPool<
             kBatchSize, kMaxpool2ChannelIn, kMaxpool2InputHW, kMaxpool2InputHW,
             kMaxpool2FilterHW, kMaxpool2FilterHW, kMaxpool2Padding,
@@ -134,17 +136,20 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
             Conv<kBatchSize, kConv3InputHW, kConv3InputHW, kConv3ChannelIn,
                  kConv3ChannelOut, kConv3FilterHW, kConv3FilterHW,
                  kConv3Padding, kConv3Padding, kConv3StrideHW, kConv3StrideHW,
-                 true, false, true>>::StateType fuse_conv3_bias_relu_state;
+                 true, false, true, kGroupSize>>::StateType
+            fuse_conv3_bias_relu_state;
         typename StateTraits<
             Conv<kBatchSize, kConv4InputHW, kConv4InputHW, kConv4ChannelIn,
                  kConv4ChannelOut, kConv4FilterHW, kConv4FilterHW,
                  kConv4Padding, kConv4Padding, kConv4StrideHW, kConv4StrideHW,
-                 true, false, true>>::StateType fuse_conv4_bias_relu_state;
+                 true, false, true, kGroupSize>>::StateType
+            fuse_conv4_bias_relu_state;
         typename StateTraits<
             Conv<kBatchSize, kConv5InputHW, kConv5InputHW, kConv5ChannelIn,
                  kConv5ChannelOut, kConv5FilterHW, kConv5FilterHW,
                  kConv5Padding, kConv5Padding, kConv5StrideHW, kConv5StrideHW,
-                 true, false, true>>::StateType fuse_conv5_bias_relu_state;
+                 true, false, true, kGroupSize>>::StateType
+            fuse_conv5_bias_relu_state;
         typename StateTraits<MaxPool<
             kBatchSize, kMaxpool3ChannelIn, kMaxpool3InputHW, kMaxpool3InputHW,
             kMaxpool3FilterHW, kMaxpool3FilterHW, kMaxpool3Padding,
@@ -165,8 +170,8 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
         Conv<kBatchSize, kAlexnetImageHeight, kAlexnetImageHeight,
              kAlexnetImageChannel, kConv1ChannelOut, kConv1FilterHW,
              kConv1FilterHW, kConv1Padding, kConv1Padding, kConv1StrideHW,
-             kConv1StrideHW, true, false,
-             true>::Forward(input, &state->fuse_conv1_bias_relu_state);
+             kConv1StrideHW, true, false, true,
+             kGroupSize>::Forward(input, &state->fuse_conv1_bias_relu_state);
         MaxPool<kBatchSize, kMaxpool1ChannelIn, kMaxpool1InputHW,
                 kMaxpool1InputHW, kMaxpool1FilterHW, kMaxpool1FilterHW,
                 kMaxpool1Padding, kMaxpool1Padding, kMaxpool1StrideHW,
@@ -175,9 +180,9 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
                                             &state->maxpool1_state);
         Conv<kBatchSize, kConv2InputHW, kConv2InputHW, kConv2ChannelIn,
              kConv2ChannelOut, kConv2FilterHW, kConv2FilterHW, kConv2Padding,
-             kConv2Padding, kConv2StrideHW, kConv2StrideHW, true, false,
-             true>::Forward(&state->maxpool1_state.output,
-                            &state->fuse_conv2_bias_relu_state);
+             kConv2Padding, kConv2StrideHW, kConv2StrideHW, true, false, true,
+             kGroupSize>::Forward(&state->maxpool1_state.output,
+                                  &state->fuse_conv2_bias_relu_state);
         MaxPool<kBatchSize, kMaxpool2ChannelIn, kMaxpool2InputHW,
                 kMaxpool2InputHW, kMaxpool2FilterHW, kMaxpool2FilterHW,
                 kMaxpool2Padding, kMaxpool2Padding, kMaxpool2StrideHW,
@@ -186,19 +191,19 @@ template <uint32_t kBatchSize, uint32_t kNumClass> class AlexnetModel {
                                             &state->maxpool2_state);
         Conv<kBatchSize, kConv3InputHW, kConv3InputHW, kConv3ChannelIn,
              kConv3ChannelOut, kConv3FilterHW, kConv3FilterHW, kConv3Padding,
-             kConv3Padding, kConv3StrideHW, kConv3StrideHW, true, false,
-             true>::Forward(&state->maxpool2_state.output,
-                            &state->fuse_conv3_bias_relu_state);
+             kConv3Padding, kConv3StrideHW, kConv3StrideHW, true, false, true,
+             kGroupSize>::Forward(&state->maxpool2_state.output,
+                                  &state->fuse_conv3_bias_relu_state);
         Conv<kBatchSize, kConv4InputHW, kConv4InputHW, kConv4ChannelIn,
              kConv4ChannelOut, kConv4FilterHW, kConv4FilterHW, kConv4Padding,
-             kConv4Padding, kConv4StrideHW, kConv4StrideHW, true, false,
-             true>::Forward(&state->fuse_conv3_bias_relu_state.output,
-                            &state->fuse_conv4_bias_relu_state);
+             kConv4Padding, kConv4StrideHW, kConv4StrideHW, true, false, true,
+             kGroupSize>::Forward(&state->fuse_conv3_bias_relu_state.output,
+                                  &state->fuse_conv4_bias_relu_state);
         Conv<kBatchSize, kConv5InputHW, kConv5InputHW, kConv5ChannelIn,
              kConv5ChannelOut, kConv5FilterHW, kConv5FilterHW, kConv5Padding,
-             kConv5Padding, kConv5StrideHW, kConv5StrideHW, true, false,
-             true>::Forward(&state->fuse_conv4_bias_relu_state.output,
-                            &state->fuse_conv5_bias_relu_state);
+             kConv5Padding, kConv5StrideHW, kConv5StrideHW, true, false, true,
+             kGroupSize>::Forward(&state->fuse_conv4_bias_relu_state.output,
+                                  &state->fuse_conv5_bias_relu_state);
         MaxPool<kBatchSize, kMaxpool3ChannelIn, kMaxpool3InputHW,
                 kMaxpool3InputHW, kMaxpool3FilterHW, kMaxpool3FilterHW,
                 kMaxpool3Padding, kMaxpool3Padding, kMaxpool3StrideHW,

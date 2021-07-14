@@ -8,7 +8,7 @@
 template <int kBatchSize, int kHeight, int kWidth, int kChannelIn,
           int kChannelOut, int kKernelH, int kKernelW, int kPadH, int kPadW,
           int kStrideH, int kStrideW, bool kIsBias, bool kFuseBN,
-          bool kFuseRelu>
+          bool kFuseRelu, int kGroupSize>
 class Conv {
   public:
     enum {
@@ -16,7 +16,8 @@ class Conv {
         kPoolHeight = (kHeight + 2 * kPadH - kKernelH) / kStrideH + 1,
         kPoolWidth = (kWidth + 2 * kPadW - kKernelW) / kStrideW + 1,
         kOutputSize = kBatchSize * kChannelOut * kPoolHeight * kPoolWidth,
-        kFilterSize = kChannelOut * kChannelIn * kKernelH * kKernelW,
+        kFilterSize =
+            kChannelOut * kChannelIn / kGroupSize * kKernelH * kKernelW,
         kBiasSize = kChannelOut * kIsBias,
         kColNum = kChannelIn * kPoolHeight * kPoolWidth,
         kColSize = kBatchSize * kColNum * kKernelH * kKernelW,
@@ -30,16 +31,17 @@ class Conv {
 
         // im2col
         // [kBatchSize*(C_in*k_h*k_w)*(height_col * width_col)]
-        dim3 im2col_dim_grid((kColNum + kBlockSize - 1) / kBlockSize,
-                             kBatchSize);
+        dim3 im2col_dim_grid((kColNum / kGroupSize + kBlockSize - 1) /
+                                 kBlockSize,
+                             kBatchSize * kGroupSize);
 
         void *col_ptr = &state->col;
         void *im2col_args[] = {(void *)&input, &col_ptr};
         cudaLaunchKernel(
-            (const void *)
-                im2col_h<kBatchSize, kHeight, kWidth, kChannelIn, kChannelOut,
-                         kKernelH, kKernelW, kPadH, kPadW, kStrideH, kStrideW,
-                         kIsBias, kInputSize, kColSize>,
+            (const void *)im2col_h<kBatchSize * kGroupSize, kHeight, kWidth,
+                                   kChannelIn / kGroupSize, kChannelOut,
+                                   kKernelH, kKernelW, kPadH, kPadW, kStrideH,
+                                   kStrideW, kIsBias, kInputSize, kColSize>,
             im2col_dim_grid, dim3(kBlockSize), (void **)im2col_args, 0);
 
         CUDA_POST_KERNEL_CHECK;
@@ -56,13 +58,13 @@ class Conv {
         constexpr int kWidthOut =
             (kWidth + 2 * kPadW - kKernelW) / kStrideW + 1;
 
-        constexpr int kMatmulHeight = kChannelOut;
-        constexpr int kMatmulK = kChannelIn * kKernelH * kKernelW;
+        constexpr int kMatmulHeight = kChannelOut / kGroupSize;
+        constexpr int kMatmulK = kChannelIn / kGroupSize * kKernelH * kKernelW;
         constexpr int kMatmulWidth = kWidthOut * kHeightOut;
 
         dim3 matmul_dim_grid((kMatmulWidth + kTileSize - 1) / kTileSize,
                              (kMatmulHeight + kTileSize - 1) / kTileSize,
-                             kBatchSize);
+                             kBatchSize * kGroupSize);
 
         void *filter_ptr = &state->filter;
         void *output_ptr = &state->output;
@@ -74,7 +76,7 @@ class Conv {
             cudaLaunchKernel(
                 (const void *)operator_fuse_conv_bn_relu_h<
                     kMatmulHeight, kMatmulK, kMatmulWidth, 1, 1, kBatchSize,
-                    kChannelOut, kHeightOut, kWidthOut, kFuseRelu>,
+                    kChannelOut, kHeightOut, kWidthOut, kFuseRelu, kGroupSize>,
                 matmul_dim_grid, dim_block, (void **)fuse_args,
                 kTileSize * kTileSize * 2);
         } else {
@@ -84,7 +86,7 @@ class Conv {
                                        &bias_ptr};
                 cudaLaunchKernel((const void *)operator_fuse_conv_bias_relu_h<
                                      kMatmulHeight, kMatmulK, kMatmulWidth, 1,
-                                     1, kBatchSize, kFuseRelu>,
+                                     1, kBatchSize, kFuseRelu, kGroupSize>,
                                  matmul_dim_grid, dim_block,
                                  (void **)matmul_args,
                                  kTileSize * kTileSize * 2);
@@ -92,7 +94,7 @@ class Conv {
                 void *matmul_args[] = {&filter_ptr, &col_ptr, &output_ptr};
                 cudaLaunchKernel((const void *)operator_fuse_matmul_relu_h<
                                      kMatmulHeight, kMatmulK, kMatmulWidth, 1,
-                                     1, kBatchSize, kFuseRelu>,
+                                     1, kBatchSize, kFuseRelu, kGroupSize>,
                                  matmul_dim_grid, dim_block,
                                  (void **)matmul_args,
                                  kTileSize * kTileSize * 2);

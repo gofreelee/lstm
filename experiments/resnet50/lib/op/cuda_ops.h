@@ -25,10 +25,10 @@ template <int kSize> struct MaxPoolState {
 };
 
 template <int kChannel> struct BatchNormParam {
-    Tensor<kChannel> running_mean;
-    Tensor<kChannel> running_var;
     Tensor<kChannel> weight;
     Tensor<kChannel> bias;
+    Tensor<kChannel> running_mean;
+    Tensor<kChannel> running_var;
 };
 
 template <int kSize, int kChannel> struct BatchNormState {
@@ -124,33 +124,38 @@ __global__ void operator_vectorrelu_h(const Tensor<kSize> *input,
                                       Tensor<kSize> *output);
 
 template <int kHeight, int kK, int kWidth, int kBroadCast, int kBatch1,
-          int kBatch2, bool kFuseRelu>
+          int kBatch2, bool kFuseRelu, int kGroupSize = 1>
 __global__ void operator_fuse_matmul_bias_relu_h(
-    const Tensor<kBatch1 * kHeight * kK> *__restrict__ input1,
-    const Tensor<kBatch2 * kWidth * kK> *__restrict__ input2,
-    Tensor<kBatch1 * kHeight * kWidth * kBatch2> *__restrict__ output,
-    const Tensor<kBatch1 * kHeight * kWidth * kBatch2> *__restrict__ bias);
+    const Tensor<kBatch1 * kHeight * kK * kGroupSize> *__restrict__ input1,
+    const Tensor<kBatch2 * kWidth * kK * kGroupSize> *__restrict__ input2,
+    Tensor<kBatch1 * kHeight * kWidth * kBatch2 * kGroupSize>
+        *__restrict__ output,
+    const Tensor<kBatch1 * kHeight * kWidth * kBatch2 * kGroupSize>
+        *__restrict__ bias);
 
 template <int kHeight, int kK, int kWidth, int kBroadCast, int kBatch1,
-          int kBatch2, bool kFuseRelu>
+          int kBatch2, bool kFuseRelu, int kGroupSize = 1>
 __global__ void operator_fuse_matmul_relu_h(
-    const Tensor<kBatch1 * kHeight * kK> *__restrict__ input1,
-    const Tensor<kBatch2 * kWidth * kK> *__restrict__ input2,
-    Tensor<kBatch1 * kHeight * kWidth * kBatch2> *__restrict__ output);
+    const Tensor<kBatch1 * kHeight * kK * kGroupSize> *__restrict__ input1,
+    const Tensor<kBatch2 * kWidth * kK * kGroupSize> *__restrict__ input2,
+    Tensor<kBatch1 * kHeight * kWidth * kBatch2 * kGroupSize>
+        *__restrict__ output);
 
 template <int kHeight, int kK, int kWidth, int kBroadCast, int kBatch1,
           int kBatch2, int kConvChannel, int kConvHeight, int kConvWidth,
-          bool kFuseRelu>
+          bool kFuseRelu, int kGroupSize = 1>
 __global__ void operator_fuse_conv_bn_relu_h(
-    const Tensor<kBatch1 * kHeight * kK> *__restrict__ input1,
-    const Tensor<kBatch2 * kWidth * kK> *__restrict__ input2,
-    Tensor<kBatch1 * kHeight * kWidth * kBatch2> *__restrict__ output,
+    const Tensor<kBatch1 * kHeight * kK * kGroupSize> *__restrict__ input1,
+    const Tensor<kBatch2 * kWidth * kK * kGroupSize> *__restrict__ input2,
+    Tensor<kBatch1 * kHeight * kWidth * kBatch2 * kGroupSize>
+        *__restrict__ output,
     const BatchNormParam<kConvChannel> *__restrict__ bn_param);
 
 template <int kHeight, int kK, int kWidth, int kBroadCast, int kBatch1,
-          int kBatch2, bool kFuseRelu>
+          int kBatch2, bool kFuseRelu, int kGroupSize = 1>
 __global__ void operator_fuse_conv_bias_relu_h(
-    const Tensor<kBatch1 * kHeight * kK> *__restrict__ input1,
-    const Tensor<kBatch2 * kWidth * kK> *__restrict__ input2,
-    Tensor<kBatch1 * kHeight * kWidth * kBatch2> *__restrict__ output,
-    const Tensor<kHeight> *__restrict__ bias);
+    const Tensor<kBatch1 * kHeight * kK * kGroupSize> *__restrict__ input1,
+    const Tensor<kBatch2 * kWidth * kK * kGroupSize> *__restrict__ input2,
+    Tensor<kBatch1 * kHeight * kWidth * kBatch2 * kGroupSize>
+        *__restrict__ output,
+    const Tensor<kHeight * kGroupSize> *__restrict__ bias);

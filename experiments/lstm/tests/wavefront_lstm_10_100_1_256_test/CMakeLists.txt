@@ -1,0 +1,12 @@
+add_executable(TestRammerLike2Net_10_100_1_256 TestRammerLike2Net_10_100_1_256.cpp)
+add_executable(BenchmarkRammerLike2Net_100_10_1_256 RammerLike2Net_100_10_1_256_benchmark.cpp)
+target_link_libraries(TestRammerLike2Net_10_100_1_256 GTest::gtest_main RammerLike2_10_100_1_256 Wavefront_lstm_10_100_1_256_cudalib utilslib)
+target_link_libraries(BenchmarkRammerLike2Net_100_10_1_256 GTest::gtest_main RammerLike2_10_100_1_256 Wavefront_lstm_10_100_1_256_cudalib utilslib)
+add_subdirectory(utils)
+add_custom_command(TARGET BenchmarkRammerLike2Net_100_10_1_256
+POST_BUILD
+COMMAND cp -r ${CMAKE_CURRENT_LIST_DIR}/test_data ${CMAKE_CURRENT_BINARY_DIR} 
+VERBATIM
+)
+
+add_test(TestRammerLike2Net_10_100_1_256 TestRammerLike2Net_10_100_1_256)

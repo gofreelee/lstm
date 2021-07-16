@@ -1,0 +1,3 @@
+add_executable(onekernel_lstm_test onekernel_Lstm_test.cc)
+target_link_libraries(onekernel_lstm_test GTest::gtest_main OneKernel LstmComputeOneKernel  LstmTestData)
+add_test(onekernel_lstm_test onekernel_lstm_test)

@@ -1,0 +1,4 @@
+add_subdirectory(naive_lstm)
+add_subdirectory(onekernel_lstm)
+add_subdirectory(wavefront_lstm_8_8_1_256)
+add_subdirectory(wavefront_lstm_10_100_1_256)

@@ -1,0 +1,3 @@
+add_executable(TestRammerLike2Net_8_8_1_256 TestRammerLike2Net_8_8_1_256.cpp)
+target_link_libraries(TestRammerLike2Net_8_8_1_256 GTest::gtest_main RammerLike2 Wavefront_lstm_8_8_1_256_cudalib  LstmTestData)
+add_test(TestRammerLike2Net_8_8_1_256 TestRammerLike2Net_8_8_1_256)

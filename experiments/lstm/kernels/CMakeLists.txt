@@ -11,3 +11,6 @@ cuda_add_library(Wavefront_lstm_8_8_1_256_cudalib
 
 cuda_add_library(Wavefront_lstm_10_100_1_256_cudalib
     IctKernels_10_100.cu)
+
+cuda_add_library(IctLstmCell_cudalib
+    IctLstmCell.cu)

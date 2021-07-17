@@ -1,0 +1,2 @@
+add_executable(lstm_cell_test lstm_cell_test.cc)
+target_link_libraries(lstm_cell_test GTest::gtest_main LSTMCell IctLstmCell_cudalib LstmTestData)

@@ -19,10 +19,9 @@ class LstmTest : public ::testing::Test {
         return diff > 0.00001f ? diff : 0.0f;
     }
 
-    void ASSERT_OUTPUT(const float *output) {
+    void ASSERT_OUTPUT(const float *output, const float *kExpected) {
         for (int i = 0; i < 256; ++i) {
-            // std::cout << output[i] << " "  << std::endl;
-            // ASSERT_FLOAT_EQ(diff(output[i], kExpected[i]), 0.0f);
+            ASSERT_FLOAT_EQ(diff(output[i], kExpected[i]), 0.0f);
         }
     }
 };

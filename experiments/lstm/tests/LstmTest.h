@@ -34,7 +34,7 @@ class LstmTest : public ::testing::Test {
     void ASSERT_OUTPUT(const float *output) {
         for (int i = 0; i < 256; ++i) {
             // std::cout << output[i] << " " << kExpected[i] << std::endl;
-            // ASSERT_FLOAT_EQ(diff(output[i], kExpected[i]), 0.0f);
+            ASSERT_FLOAT_EQ(diff(output[i], kExpected[i]), 0.0f);
         }
     }
 };

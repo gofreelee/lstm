@@ -17,3 +17,6 @@ cuda_add_library(IctLstmCell_cudalib
 
 cuda_add_library(IctLstm100_10_256_cudalib
     IctLstm100_10_256_lib.cu)
+
+cuda_add_library(IctSeq2SeqLstm_cudalib
+    IctSeq2SeqLstmlib.cu)

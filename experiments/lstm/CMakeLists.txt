@@ -4,6 +4,8 @@ set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O2")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -cudart shared")
 include_directories(${CUDA_INCLUDE_DIRS})
 include_directories(${CMAKE_CURRENT_SOURCE_DIR}/lib)
+include_directories(${CMAKE_CURRENT_LIST_DIR}/.)
+
 
 add_subdirectory(kernels)
 add_subdirectory(net)

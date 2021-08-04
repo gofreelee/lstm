@@ -46,6 +46,9 @@ class LSTM100_10 {
         cudaMemcpy(output_host,
                    state_h_s + hidden_size * ((num_step + 1) * num_layer - 1),
                    sizeof(float) * hidden_size, cudaMemcpyDeviceToHost);
+        //  cudaMemcpy(output_host,
+        //            state_h_s + hidden_size * (10),
+        //            sizeof(float) * hidden_size, cudaMemcpyDeviceToHost);
         return output_host;
     }
 };

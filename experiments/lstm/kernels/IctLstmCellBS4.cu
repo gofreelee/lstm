@@ -1,5 +1,4 @@
-#include "net/lstm_cell_net_100_10/WavefrontParams.h"
-#include <stdio.h>
+#include "net/lstm_cell_net_100_10_bs4/WavefrontParamsBS4.h"
 #define COLUMNS_PER_BLOCK 32 // one block compute 32 colums
 #define THREAD_NUMS_PER_BLOCK 256
 #define HIDDENSIZE 256
@@ -177,19 +176,20 @@ __device__ void onekernel_fuse_opt_v1(dim3 blockIdx1, const float *input_i,
     }
 }
 
-__device__ void onekernel_fuse_opt_v2(dim3 blockIdx1,
-                                      WaveInputParams *__restrict__ input,
-                                      WaveModelParams *__restrict__ model,
-                                      WaveOutputParams *__restrict__ output) {
+__device__ void
+onekernel_fuse_opt_v2(dim3 blockIdx1, WaveInputParamsBS4 *__restrict__ input,
+                      WaveModelParamsBS4 *__restrict__ model,
+                      WaveOutputParamsBS4 *__restrict__ output) {
 
-    __shared__ float4 nndense_output1[COLUMNS_PER_BLOCK];
+    __shared__ float4 nndense_output1[4][COLUMNS_PER_BLOCK];
 
     const int warp_id = threadIdx.x >> 5;
     const int lane_id = threadIdx.x & 0x1f;
     const int colOffset = blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
-    nndense_output1[lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
+    for (int i = 0; i < 4; ++i)
+        nndense_output1[i][lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
 
-    float temp1[4] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
+    float4 temp1[4] = {0.0000f};
 
     const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
     int vectorRow = ROWS * warp_id;
@@ -197,51 +197,112 @@ __device__ void onekernel_fuse_opt_v2(dim3 blockIdx1,
         vectorRow * HIDDENSIZE + blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
     int kEnd = kStart + ROWS * HIDDENSIZE;
     for (; kStart < kEnd; kStart += HIDDENSIZE, ++vectorRow) {
-        const float data = input->input_i[vectorRow];
+        const float4 data = input->input_i[vectorRow];
         float4 res = model->weight_w[kStart];
-
-        temp1[0] = fma(res.x, data, temp1[0]);
-        temp1[1] = fma(res.y, data, temp1[1]);
-        temp1[2] = fma(res.z, data, temp1[2]);
-        temp1[3] = fma(res.w, data, temp1[3]);
-        const float data2 = input->input_h[vectorRow];
+        const float4 data2 = input->input_h[vectorRow];
         float4 res2 = model->weight_u[kStart];
-        temp1[0] = fma(res2.x, data2, temp1[0]);
-        temp1[1] = fma(res2.y, data2, temp1[1]);
-        temp1[2] = fma(res2.z, data2, temp1[2]);
-        temp1[3] = fma(res2.w, data2, temp1[3]);
+        temp1[0].x = fma(res.x, data.x, temp1[0].x);
+        temp1[0].y = fma(res.y, data.x, temp1[0].y);
+        temp1[0].z = fma(res.z, data.x, temp1[0].z);
+        temp1[0].w = fma(res.w, data.x, temp1[0].w);
+
+        temp1[0].x = fma(res2.x, data2.x, temp1[0].x);
+        temp1[0].y = fma(res2.y, data2.x, temp1[0].y);
+        temp1[0].z = fma(res2.z, data2.x, temp1[0].z);
+        temp1[0].w = fma(res2.w, data2.x, temp1[0].w);
+        // batch 1
+        temp1[1].x = fma(res.x, data.y, temp1[1].x);
+        temp1[1].y = fma(res.y, data.y, temp1[1].y);
+        temp1[1].z = fma(res.z, data.y, temp1[1].z);
+        temp1[1].w = fma(res.w, data.y, temp1[1].w);
+        temp1[1].x = fma(res2.x, data2.y, temp1[1].x);
+        temp1[1].y = fma(res2.y, data2.y, temp1[1].y);
+        temp1[1].z = fma(res2.z, data2.y, temp1[1].z);
+        temp1[1].w = fma(res2.w, data2.y, temp1[1].w);
+        // batch 2
+        temp1[2].x = fma(res.x, data.z, temp1[2].x);
+        temp1[2].y = fma(res.y, data.z, temp1[2].y);
+        temp1[2].z = fma(res.z, data.z, temp1[2].z);
+        temp1[2].w = fma(res.w, data.z, temp1[2].w);
+        temp1[2].x = fma(res2.x, data2.z, temp1[2].x);
+        temp1[2].y = fma(res2.y, data2.z, temp1[2].y);
+        temp1[2].z = fma(res2.z, data2.z, temp1[2].z);
+        temp1[2].w = fma(res2.w, data2.z, temp1[2].w);
+        // batch3
+        temp1[3].x = fma(res.x, data.w, temp1[3].x);
+        temp1[3].y = fma(res.y, data.w, temp1[3].y);
+        temp1[3].z = fma(res.z, data.w, temp1[3].z);
+        temp1[3].w = fma(res.w, data.w, temp1[3].w);
+        temp1[3].x = fma(res2.x, data2.w, temp1[3].x);
+        temp1[3].y = fma(res2.y, data2.w, temp1[3].y);
+        temp1[3].z = fma(res2.z, data2.w, temp1[3].z);
+        temp1[3].w = fma(res2.w, data2.w, temp1[3].w);
     }
     __syncthreads();
-    atomicAdd(&nndense_output1[lane_id].x, temp1[0]);
-    atomicAdd(&nndense_output1[lane_id].y, temp1[1]);
-    atomicAdd(&nndense_output1[lane_id].z, temp1[2]);
-    atomicAdd(&nndense_output1[lane_id].w, temp1[3]);
-    ;
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        atomicAdd(&nndense_output1[batchIndex][lane_id].x, temp1[batchIndex].x);
+        atomicAdd(&nndense_output1[batchIndex][lane_id].y, temp1[batchIndex].y);
+        atomicAdd(&nndense_output1[batchIndex][lane_id].z, temp1[batchIndex].z);
+        atomicAdd(&nndense_output1[batchIndex][lane_id].w, temp1[batchIndex].w);
+    }
     __syncthreads();
     if (warp_id == 0) {
-        printf("%d  %d  %f %f %f %f: \n", blockIdx.x, lane_id,
-               nndense_output1[lane_id].x, nndense_output1[lane_id].y,
-               nndense_output1[lane_id].z, nndense_output1[lane_id].w);
-        float x, y, z, w;
+        float4 bs0, bs1, bs2, bs3, state_h;
+        float4 state_c = output->state_c[colOffset];
         float4 bias_t = model->bias[colOffset];
-        x = nndense_output1[lane_id].x + bias_t.x;
-        y = nndense_output1[lane_id].y + bias_t.y;
-        z = nndense_output1[lane_id].z + bias_t.z;
-        w = nndense_output1[lane_id].w + bias_t.w;
-
-        x = sigmoid(x);
-        y = tanh(y);
-        w = sigmoid(w);
-        z = sigmoid(z + 1.0000f) * output->state_c[colOffset];
-        output->state_c[colOffset] = fma(x, y, z);
-        output->state_h[colOffset] = (tanh(output->state_c[colOffset])) * w;
+        bs0.x = nndense_output1[0][lane_id].x + bias_t.x;
+        bs0.y = nndense_output1[0][lane_id].y + bias_t.y;
+        bs0.z = nndense_output1[0][lane_id].z + bias_t.z;
+        bs0.w = nndense_output1[0][lane_id].w + bias_t.w;
+        bs0.x = sigmoid(bs0.x);
+        bs0.y = tanh(bs0.y);
+        bs0.w = sigmoid(bs0.w);
+        bs0.z = sigmoid(bs0.z + 1.0000f) * state_c.x;
+        state_c.x = fma(bs0.x, bs0.y, bs0.z);
+        // batch 1
+        bs1.x = nndense_output1[1][lane_id].x + bias_t.x;
+        bs1.y = nndense_output1[1][lane_id].y + bias_t.y;
+        bs1.z = nndense_output1[1][lane_id].z + bias_t.z;
+        bs1.w = nndense_output1[1][lane_id].w + bias_t.w;
+        bs1.x = sigmoid(bs1.x);
+        bs1.y = tanh(bs1.y);
+        bs1.w = sigmoid(bs1.w);
+        bs1.z = sigmoid(bs1.z + 1.0000f) * state_c.y;
+        state_c.y = fma(bs1.x, bs1.y, bs1.z);
+        // batch 2
+        bs2.x = nndense_output1[2][lane_id].x + bias_t.x;
+        bs2.y = nndense_output1[2][lane_id].y + bias_t.y;
+        bs2.z = nndense_output1[2][lane_id].z + bias_t.z;
+        bs2.w = nndense_output1[2][lane_id].w + bias_t.w;
+        bs2.x = sigmoid(bs2.x);
+        bs2.y = tanh(bs2.y);
+        bs2.w = sigmoid(bs2.w);
+        bs2.z = sigmoid(bs2.z + 1.0000f) * state_c.z;
+        state_c.z = fma(bs2.x, bs2.y, bs2.z);
+        // batch 3
+        bs3.x = nndense_output1[3][lane_id].x + bias_t.x;
+        bs3.y = nndense_output1[3][lane_id].y + bias_t.y;
+        bs3.z = nndense_output1[3][lane_id].z + bias_t.z;
+        bs3.w = nndense_output1[3][lane_id].w + bias_t.w;
+        bs3.x = sigmoid(bs3.x);
+        bs3.y = tanh(bs3.y);
+        bs3.w = sigmoid(bs3.w);
+        bs3.z = sigmoid(bs3.z + 1.0000f) * state_c.w;
+        state_c.w = fma(bs3.x, bs3.y, bs3.z);
+        //
+        state_h.x = (tanh(state_c.x)) * bs0.w;
+        state_h.y = (tanh(state_c.y)) * bs1.w;
+        state_h.z = (tanh(state_c.z)) * bs2.w;
+        state_h.w = (tanh(state_c.w)) * bs3.w;
+        output->state_c[colOffset] = state_c;
+        output->state_h[colOffset] = state_h;
     }
 }
 
 __global__ void __launch_bounds__(256, 1)
-    wave0(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave0(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 0);
@@ -249,9 +310,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave1(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave1(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 1);
@@ -262,9 +323,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave2(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave2(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 2);
@@ -278,9 +339,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave3(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave3(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 3);
@@ -297,9 +358,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave4(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave4(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 4);
@@ -319,9 +380,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave5(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave5(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 5);
@@ -344,9 +405,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave6(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave6(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 6);
@@ -372,9 +433,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave7(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave7(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 7);
@@ -403,9 +464,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave8(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave8(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 8);
@@ -437,9 +498,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave9(WaveInputParams *__restrict__ input,
-          WaveModelParams *__restrict__ model,
-          WaveOutputParams *__restrict__ output) {
+    wave9(WaveInputParamsBS4 *__restrict__ input,
+          WaveModelParamsBS4 *__restrict__ model,
+          WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 9);
@@ -474,9 +535,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave10(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave10(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 10);
@@ -511,9 +572,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave11(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave11(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 11);
@@ -548,9 +609,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave12(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave12(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 12);
@@ -585,9 +646,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave13(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave13(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 13);
@@ -622,9 +683,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave14(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave14(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 14);
@@ -659,9 +720,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave15(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave15(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 15);
@@ -696,9 +757,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave16(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave16(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 16);
@@ -733,9 +794,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave17(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave17(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 17);
@@ -770,9 +831,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave18(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave18(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 18);
@@ -807,9 +868,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave19(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave19(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 19);
@@ -844,9 +905,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave20(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave20(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 20);
@@ -881,9 +942,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave21(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave21(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 21);
@@ -918,9 +979,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave22(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave22(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 22);
@@ -955,9 +1016,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave23(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave23(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 23);
@@ -992,9 +1053,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave24(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave24(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 24);
@@ -1029,9 +1090,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave25(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave25(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 25);
@@ -1066,9 +1127,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave26(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave26(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 26);
@@ -1103,9 +1164,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave27(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave27(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 27);
@@ -1140,9 +1201,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave28(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave28(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 28);
@@ -1177,9 +1238,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave29(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave29(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 29);
@@ -1214,9 +1275,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave30(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave30(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 30);
@@ -1251,9 +1312,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave31(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave31(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 31);
@@ -1288,9 +1349,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave32(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave32(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 32);
@@ -1325,9 +1386,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave33(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave33(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 33);
@@ -1362,9 +1423,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave34(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave34(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 34);
@@ -1399,9 +1460,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave35(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave35(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 35);
@@ -1436,9 +1497,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave36(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave36(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 36);
@@ -1473,9 +1534,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave37(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave37(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 37);
@@ -1510,9 +1571,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave38(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave38(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 38);
@@ -1547,9 +1608,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave39(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave39(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 39);
@@ -1584,9 +1645,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave40(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave40(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 40);
@@ -1621,9 +1682,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave41(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave41(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 41);
@@ -1658,9 +1719,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave42(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave42(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 42);
@@ -1695,9 +1756,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave43(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave43(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 43);
@@ -1732,9 +1793,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave44(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave44(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 44);
@@ -1769,9 +1830,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave45(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave45(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 45);
@@ -1806,9 +1867,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave46(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave46(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 46);
@@ -1843,9 +1904,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave47(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave47(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 47);
@@ -1880,9 +1941,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave48(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave48(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 48);
@@ -1917,9 +1978,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave49(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave49(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 49);
@@ -1954,9 +2015,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave50(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave50(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 50);
@@ -1991,9 +2052,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave51(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave51(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 51);
@@ -2028,9 +2089,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave52(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave52(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 52);
@@ -2065,9 +2126,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave53(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave53(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 53);
@@ -2102,9 +2163,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave54(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave54(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 54);
@@ -2139,9 +2200,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave55(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave55(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 55);
@@ -2176,9 +2237,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave56(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave56(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 56);
@@ -2213,9 +2274,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave57(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave57(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 57);
@@ -2250,9 +2311,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave58(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave58(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 58);
@@ -2287,9 +2348,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave59(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave59(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 59);
@@ -2324,9 +2385,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave60(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave60(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 60);
@@ -2361,9 +2422,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave61(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave61(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 61);
@@ -2398,9 +2459,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave62(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave62(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 62);
@@ -2435,9 +2496,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave63(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave63(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 63);
@@ -2472,9 +2533,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave64(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave64(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 64);
@@ -2509,9 +2570,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave65(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave65(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 65);
@@ -2546,9 +2607,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave66(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave66(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 66);
@@ -2583,9 +2644,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave67(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave67(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 67);
@@ -2620,9 +2681,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave68(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave68(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 68);
@@ -2657,9 +2718,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave69(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave69(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 69);
@@ -2694,9 +2755,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave70(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave70(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 70);
@@ -2731,9 +2792,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave71(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave71(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 71);
@@ -2768,9 +2829,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave72(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave72(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 72);
@@ -2805,9 +2866,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave73(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave73(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 73);
@@ -2842,9 +2903,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave74(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave74(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 74);
@@ -2879,9 +2940,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave75(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave75(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 75);
@@ -2916,9 +2977,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave76(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave76(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 76);
@@ -2953,9 +3014,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave77(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave77(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 77);
@@ -2990,9 +3051,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave78(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave78(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 78);
@@ -3027,9 +3088,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave79(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave79(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 79);
@@ -3064,9 +3125,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave80(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave80(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 80);
@@ -3101,9 +3162,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave81(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave81(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 81);
@@ -3138,9 +3199,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave82(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave82(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 82);
@@ -3175,9 +3236,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave83(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave83(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 83);
@@ -3212,9 +3273,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave84(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave84(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 84);
@@ -3249,9 +3310,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave85(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave85(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 85);
@@ -3286,9 +3347,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave86(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave86(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 86);
@@ -3323,9 +3384,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave87(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave87(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 87);
@@ -3360,9 +3421,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave88(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave88(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 88);
@@ -3397,9 +3458,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave89(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave89(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 89);
@@ -3434,9 +3495,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave90(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave90(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 90);
@@ -3471,9 +3532,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave91(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave91(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 91);
@@ -3508,9 +3569,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave92(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave92(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 92);
@@ -3545,9 +3606,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave93(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave93(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 93);
@@ -3582,9 +3643,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave94(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave94(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 94);
@@ -3619,9 +3680,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave95(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave95(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 95);
@@ -3656,9 +3717,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave96(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave96(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 96);
@@ -3693,9 +3754,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave97(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave97(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 97);
@@ -3730,9 +3791,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave98(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave98(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 98);
@@ -3767,9 +3828,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave99(WaveInputParams *__restrict__ input,
-           WaveModelParams *__restrict__ model,
-           WaveOutputParams *__restrict__ output) {
+    wave99(WaveInputParamsBS4 *__restrict__ input,
+           WaveModelParamsBS4 *__restrict__ model,
+           WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(0, 99);
@@ -3804,9 +3865,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave100(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave100(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(1, 99);
@@ -3838,9 +3899,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave101(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave101(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(2, 99);
@@ -3869,9 +3930,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave102(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave102(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(3, 99);
@@ -3897,9 +3958,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave103(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave103(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(4, 99);
@@ -3922,9 +3983,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave104(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave104(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(5, 99);
@@ -3944,9 +4005,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave105(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave105(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(6, 99);
@@ -3963,9 +4024,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave106(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave106(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(7, 99);
@@ -3979,9 +4040,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave107(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave107(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(8, 99);
@@ -3992,9 +4053,9 @@ __global__ void __launch_bounds__(256, 1)
     }
 }
 __global__ void __launch_bounds__(256, 1)
-    wave108(WaveInputParams *__restrict__ input,
-            WaveModelParams *__restrict__ model,
-            WaveOutputParams *__restrict__ output) {
+    wave108(WaveInputParamsBS4 *__restrict__ input,
+            WaveModelParamsBS4 *__restrict__ model,
+            WaveOutputParamsBS4 *__restrict__ output) {
     switch (blockIdx.x >> 3) {
     case 0:
         call_onekernel(9, 99);

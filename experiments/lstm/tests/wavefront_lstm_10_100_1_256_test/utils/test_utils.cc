@@ -66,8 +66,8 @@ std::vector<LSTMNetHostParams> readInputParamsFuse(int fd, int hidden_size,
     void *buf =
         (void *)malloc(sizeof(float) * (hidden_size * hidden_size * 40 * 2 +
                                         batch_size * hidden_size * 40));
-    int sum = sizeof(float) * (hidden_size * hidden_size * 40 * 2 +
-                               batch_size * hidden_size * 40);
+    int sum =
+        sizeof(float) * (hidden_size * hidden_size * 40 * 2 + hidden_size * 40);
     int readed_bytes = 0, onetime_bytes = 0;
     void *base = buf;
     while (readed_bytes < sum) {

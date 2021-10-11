@@ -10,7 +10,12 @@ void LSTM100_10_BS4::init(const std::vector<LSTMNetHostParams> &params) {
                sizeof(float4) * num_layer *
                        (8 * hidden_size * hidden_size + 5 * hidden_size) +
                    sizeof(float4) * num_step * hidden_size +
-                   sizeof(float4) * hidden_size * num_layer * (num_step + 1));
+                   sizeof(float4) * hidden_size * num_layer * (num_step + 1) +
+                   4 * sizeof(float) * num_layer * hidden_size +
+                   4 * sizeof(float) * num_step * hidden_size +
+                   4 * sizeof(float) * hidden_size * num_layer *
+                       (num_step + 1));
+
     cudaMalloc(&wi, sizeof(float4) * num_step * num_layer * hidden_size);
     cudaMalloc(&uh, sizeof(float4) * num_step * num_layer * hidden_size);
     cudaMalloc(&WaveInputParamsBS4_dev,
@@ -33,15 +38,24 @@ void LSTM100_10_BS4::init(const std::vector<LSTMNetHostParams> &params) {
         state_h_s + (num_step + 1) * num_layer * hidden_size);
     weights_u = weights_w + num_layer * hidden_size * hidden_size;
     bias_s = weights_u + num_layer * hidden_size * hidden_size;
+    inputs_dev_s =
+        reinterpret_cast<float *>(bias_s) + num_layer * hidden_size * 4;
+    state_c_dev_s = inputs_dev_s + num_step * hidden_size * 4;
+    state_h_dev_s = state_c_dev_s + num_layer * hidden_size * 4;
+
     for (int i = 0; i < num_step; ++i) {
         cudaMemcpy(inputs_dev + i * hidden_size, params[0].inputs,
                    sizeof(float4) * hidden_size, cudaMemcpyHostToDevice);
+        cudaMemcpy(inputs_dev_s + i * hidden_size * 4, params[0].inputs,
+                   sizeof(float) * hidden_size * 4, cudaMemcpyHostToDevice);
     }
     // cudaMemcpy(state_h_s + i * hidden_size, params[i].state_h_s,
     //           sizeof(float) * hidden_size, cudaMemcpyHostToDevice);
     for (int i = 0; i < num_layer; ++i) {
         cudaMemcpy(state_c_s + i * hidden_size, params[i].state_c_s,
                    sizeof(float4) * hidden_size, cudaMemcpyHostToDevice);
+        cudaMemcpy(state_c_dev_s + i * hidden_size * 4, params[i].state_c_s,
+                   sizeof(float) * hidden_size * 4, cudaMemcpyHostToDevice);
         cudaMemcpy(
             weights_w + i * hidden_size * hidden_size, params[i].weights_w,
             sizeof(float4) * hidden_size * hidden_size, cudaMemcpyHostToDevice);
@@ -56,27 +70,42 @@ void LSTM100_10_BS4::init(const std::vector<LSTMNetHostParams> &params) {
             cudaMemcpy(state_h_s + hidden_size * (j * num_layer + i),
                        params[i].state_h_s, sizeof(float4) * hidden_size,
                        cudaMemcpyHostToDevice);
+            cudaMemcpy(state_h_dev_s + hidden_size * 4 * (j * num_layer + i),
+                       params[i].state_h_s, sizeof(float) * hidden_size * 4,
+                       cudaMemcpyHostToDevice);
         }
     }
     for (int i = 0; i < num_step; ++i) {
         for (int j = 0; j < num_layer; ++j) {
-            if (j == 0)
+            if (j == 0) {
                 (waveInputParamsBS4 + i * num_layer + j)->input_i =
                     inputs_dev + i * hidden_size;
-            else
+                (waveInputParamsBS4 + i * num_layer + j)->input_i_f1 =
+                    inputs_dev_s + i * hidden_size * 4;
+            } else {
                 (waveInputParamsBS4 + i * num_layer + j)->input_i =
                     state_h_s + ((i + 1) * num_layer + j - 1) * hidden_size;
-
+                (waveInputParamsBS4 + i * num_layer + j)->input_i_f1 =
+                    state_h_dev_s +
+                    ((i + 1) * num_layer + j - 1) * hidden_size * 4;
+            }
             (waveInputParamsBS4 + i * num_layer + j)->input_h =
                 state_h_s + (i * num_layer + j) * hidden_size;
+            (waveInputParamsBS4 + i * num_layer + j)->input_h_f1 =
+                state_h_dev_s + (i * num_layer + j) * hidden_size * 4;
+
             (waveOutputParamsBS4 + i * num_layer + j)->wi =
                 wi + (i * num_layer + j) * hidden_size;
             (waveOutputParamsBS4 + i * num_layer + j)->uh =
                 uh + (i * num_layer + j) * hidden_size;
             (waveOutputParamsBS4 + i * num_layer + j)->state_c =
                 state_c_s + j * hidden_size;
+            (waveOutputParamsBS4 + i * num_layer + j)->state_c_f1 =
+                state_c_dev_s + j * hidden_size * 4;
             (waveOutputParamsBS4 + i * num_layer + j)->state_h =
                 state_h_s + ((i + 1) * num_layer + j) * hidden_size;
+            (waveOutputParamsBS4 + i * num_layer + j)->state_h_f1 =
+                state_h_dev_s + ((i + 1) * num_layer + j) * hidden_size * 4;
         }
     }
 
@@ -90,6 +119,37 @@ void LSTM100_10_BS4::init(const std::vector<LSTMNetHostParams> &params) {
                sizeof(float4) * hidden_size);
     }
 
+    for (int i = 0; i < num_layer; ++i) {
+
+        float *hostTempWS =
+            (float *)malloc(sizeof(float4) * hidden_size * hidden_size);
+        float *hostTempUS =
+            (float *)malloc(sizeof(float4) * hidden_size * hidden_size);
+        float *hostTempBiasS = (float *)malloc(sizeof(float4) * hidden_size);
+        for (int m = 0; m < hidden_size; m++)
+            for (int n = 0; n < hidden_size; n++) {
+                for (int k = 0; k < 4; k++) {
+
+                    hostTempWS[k * 256 * 256 + n * 256 + m] =
+                        params[i].weights_w[(n * hidden_size + m) * 4 + k];
+                    hostTempUS[k * 256 * 256 + n * 256 + m] =
+                        params[i].weights_u[(n * hidden_size + m) * 4 + k];
+                    hostTempBiasS[k * 256 + m] = params[i].bias_s[m * 4 + k];
+                }
+            }
+
+        memcpy((waveModelParamsBS4 + i)->weight_ws, hostTempWS,
+               sizeof(float4) * hidden_size * hidden_size);
+        memcpy((waveModelParamsBS4 + i)->weight_us, hostTempUS,
+               sizeof(float4) * hidden_size * hidden_size);
+        memcpy((waveModelParamsBS4 + i)->biass, hostTempBiasS,
+               sizeof(float4) * hidden_size);
+
+        free(hostTempWS);
+        free(hostTempUS);
+        free(hostTempBiasS);
+    }
+
     cudaMemcpy(WaveInputParamsBS4_dev, waveInputParamsBS4,
                sizeof(WaveInputParamsBS4) * num_step * num_layer,
                cudaMemcpyHostToDevice);
@@ -98,13 +158,7 @@ void LSTM100_10_BS4::init(const std::vector<LSTMNetHostParams> &params) {
     cudaMemcpy(WaveOutputParamsBS4_dev, waveOutputParamsBS4,
                sizeof(WaveOutputParamsBS4) * num_step * num_layer,
                cudaMemcpyHostToDevice);
-    // for(int i = 0;i < hidden_size * hidden_size; ++i)
-    // {
-    //     std::cout << waveModelParamsBS4->weight_w[i].x << " "
-    //               << waveModelParamsBS4->weight_w[i].y << " "
-    //               << waveModelParamsBS4->weight_w[i].z << " "
-    //               << waveModelParamsBS4->weight_w[i].w << std::endl;
-    // }
+
     free(waveInputParamsBS4);
     free(waveModelParamsBS4);
     free(waveOutputParamsBS4);

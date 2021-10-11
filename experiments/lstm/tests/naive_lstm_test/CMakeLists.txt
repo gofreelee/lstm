@@ -1,3 +1,0 @@
-add_executable(naive_lstm_test naive_Lstm_test.cc)
-target_link_libraries(naive_lstm_test GTest::gtest_main NaiveLstm LstmNaiveCuda LstmTestData)
-add_test(naive_lstm_test naive_lstm_test)

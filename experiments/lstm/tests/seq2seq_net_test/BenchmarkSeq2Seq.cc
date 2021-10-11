@@ -8,6 +8,7 @@
 #include <cstring>
 #include <fcntl.h>
 #include <sys/stat.h>
+#include "sys/time.h"
 
 #include "cuda_runtime.h"
 
@@ -113,7 +114,7 @@ int main(int argc, char *argv[]) {
     cudaMemcpy(inputs_dev, inputs,
                sizeof(float) * batch_size * enc_step * input_size,
                cudaMemcpyHostToDevice);
-    impl->compute();
+    impl->computeAndSolve();
     float *result = impl->getOutput();
     for (unsigned i = 0; i < hidden_size; i++) {
         float diff = fabs(result[i] - output[i]);
@@ -136,22 +137,40 @@ int main(int argc, char *argv[]) {
 
     for (int i = 0; i < 5; i++) {
         // Different, input/output memcpy time
-        impl->compute();
+        impl->computeAndSolve();
     }
-    cudaEvent_t start_cuda, stop_cuda;
-    cudaEventCreate(&start_cuda);
-    cudaEventCreate(&stop_cuda);
-    cudaEventRecord(start_cuda, 0);
+    timeval time_start;
+    timeval time_end;
+    long long walltimes = 0;
+    std::vector<double> recordVec;
+    double maxTime = 0;
+    double minTime = 10;
+    for (int i = 0; i < 100; ++i) {
+        gettimeofday(&time_start, NULL);
+        impl->computeAndSolve();
+        gettimeofday(&time_end, NULL);
+        long long once_time = (time_end.tv_sec - time_start.tv_sec) * 1000000 +
+                              time_end.tv_usec - time_start.tv_usec;
+    }
     for (int i = 0; i < kLoop; i++) {
         // Different, input/output memcpy time
-        impl->compute();
+        gettimeofday(&time_start, NULL);
+        impl->computeAndSolve();
+        gettimeofday(&time_end, NULL);
+        long long once_time = (time_end.tv_sec - time_start.tv_sec) * 1000000 +
+                              time_end.tv_usec - time_start.tv_usec;
+        maxTime = (static_cast<double>(once_time) / 1000000) > maxTime
+                      ? (static_cast<double>(once_time) / 1000000)
+                      : maxTime;
+        minTime = (static_cast<double>(once_time) / 1000000) < minTime
+                      ? (static_cast<double>(once_time) / 1000000)
+                      : minTime;
+        walltimes += once_time;
     }
-    cudaEventRecord(stop_cuda, 0);
-    cudaEventSynchronize(stop_cuda);
-    float cuda_event_timepassed = 0;
-    cudaEventElapsedTime(&cuda_event_timepassed, start_cuda, stop_cuda);
-    std::cout << "My test Elapsed time (ms): " << cuda_event_timepassed / kLoop
-              << std::endl;
+    double t = static_cast<double>(walltimes) / 1000000;
+    std::cout << "Average Elapsed time (ms): " << t << std::endl;
+    std::cout << "Max Elapsed time (ms) :" << maxTime * 1000 << "\n"
+              << "Min Elapsed time (ms) :" << minTime * 1000 << std::endl;
     impl->release();
     free(inputs);
     free(h_state);

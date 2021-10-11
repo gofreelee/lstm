@@ -8,9 +8,9 @@
 #define NUM_LAYER 100
 #define call_onekernel(cell, step)                                             \
     {                                                                          \
-        onekernel_fuse_opt_v2(blockIdx.x & 0x7,                                \
-                              input + step * CELL_NUM + cell, model + cell,    \
-                              output + step * CELL_NUM + cell);                \
+       onekernel_fuse_opt_v2_no_float4_with_adduw_bs16(                       \
+            blockIdx.x & 0x7, input + step * CELL_NUM + cell, model + cell,    \
+            output + step * CELL_NUM + cell);                                  \
     }
 
 __device__ static inline float sigmoid(float x) {
@@ -222,6 +222,475 @@ onekernel_fuse_opt_v2(dim3 blockIdx1, WaveInputParamsBS16 *__restrict__ input,
         bs3.y = nndense_output1[3 + threadIdx.y * 4][lane_id].y + bias_t.y;
         bs3.z = nndense_output1[3 + threadIdx.y * 4][lane_id].z + bias_t.z;
         bs3.w = nndense_output1[3 + threadIdx.y * 4][lane_id].w + bias_t.w;
+        bs3.x = sigmoid(bs3.x);
+        bs3.y = tanh(bs3.y);
+        bs3.w = sigmoid(bs3.w);
+        bs3.z = sigmoid(bs3.z + 1.0000f) * state_c.w;
+        state_c.w = fma(bs3.x, bs3.y, bs3.z);
+        //
+        state_h.x = (tanh(state_c.x)) * bs0.w;
+        state_h.y = (tanh(state_c.y)) * bs1.w;
+        state_h.z = (tanh(state_c.z)) * bs2.w;
+        state_h.w = (tanh(state_c.w)) * bs3.w;
+
+        output->state_c[(colOffset << 2) + threadIdx.y] = state_c;
+        output->state_h[(colOffset << 2) + threadIdx.y] = state_h;
+    }
+}
+
+__device__ void onekernel_fuse_opt_v2_no_float4_no_adduw_bs16(
+    dim3 blockIdx1, WaveInputParamsBS16 *__restrict__ input,
+    WaveModelParamsBS16 *__restrict__ model,
+    WaveOutputParamsBS16 *__restrict__ output) {
+    __shared__ float4 nndense_output1[16][COLUMNS_PER_BLOCK << 1];
+
+    const int warp_id = threadIdx.x >> 5;
+    const int lane_id = threadIdx.x & 0x1f;
+    const int colOffset = blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+    for (int i = 0; i < 16; ++i) {
+        nndense_output1[i][lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
+        nndense_output1[i][lane_id + 32] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
+    }
+    float temp1[32] = {
+        0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+        0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+        0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+        0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f};
+
+    const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
+    int vectorRow = ROWS * warp_id;
+    int kStart =
+        vectorRow * HIDDENSIZE + blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+    int kEnd = kStart + ROWS * HIDDENSIZE;
+
+    for (; kStart < kEnd; kStart += HIDDENSIZE, ++vectorRow) {
+        for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+            const float data = input->input_i_f1[(vectorRow << 4) + batchIndex +
+                                                 threadIdx.y * 4];
+            const float data2 = input->input_h_f1[(vectorRow << 4) +
+                                                  batchIndex + threadIdx.y * 4];
+
+            temp1[0 + 8 * batchIndex] = fma(model->weight_ws[0][kStart], data,
+                                            temp1[0 + 8 * batchIndex]);
+            temp1[1 + 8 * batchIndex] = fma(model->weight_ws[1][kStart], data,
+                                            temp1[1 + 8 * batchIndex]);
+            temp1[2 + 8 * batchIndex] = fma(model->weight_ws[2][kStart], data,
+                                            temp1[2 + 8 * batchIndex]);
+            temp1[3 + 8 * batchIndex] = fma(model->weight_ws[3][kStart], data,
+                                            temp1[3 + 8 * batchIndex]);
+            temp1[4 + 8 * batchIndex] = fma(model->weight_us[0][kStart], data2,
+                                            temp1[4 + 8 * batchIndex]);
+            temp1[5 + 8 * batchIndex] = fma(model->weight_us[1][kStart], data2,
+                                            temp1[5 + 8 * batchIndex]);
+            temp1[6 + 8 * batchIndex] = fma(model->weight_us[2][kStart], data2,
+                                            temp1[6 + 8 * batchIndex]);
+            temp1[7 + 8 * batchIndex] = fma(model->weight_us[3][kStart], data2,
+                                            temp1[7 + 8 * batchIndex]);
+        }
+    }
+    __syncthreads();
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        atomicAdd(&nndense_output1[batchIndex + threadIdx.y * 4][lane_id].x,
+                  temp1[batchIndex * 8 + 0]);
+        atomicAdd(&nndense_output1[batchIndex + threadIdx.y * 4][lane_id].y,
+                  temp1[batchIndex * 8 + 1]);
+        atomicAdd(&nndense_output1[batchIndex + threadIdx.y * 4][lane_id].z,
+                  temp1[batchIndex * 8 + 2]);
+        atomicAdd(&nndense_output1[batchIndex + threadIdx.y * 4][lane_id].w,
+                  temp1[batchIndex * 8 + 3]);
+        atomicAdd(
+            &nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].x,
+            temp1[batchIndex * 8 + 4]);
+        atomicAdd(
+            &nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].y,
+            temp1[batchIndex * 8 + 5]);
+        atomicAdd(
+            &nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].z,
+            temp1[batchIndex * 8 + 6]);
+        atomicAdd(
+            &nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].w,
+            temp1[batchIndex * 8 + 7]);
+    }
+    __syncthreads();
+
+    if (warp_id == 0) {
+        for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+            float x, y, z, w;
+            // float4 bias_t = model->bias[colOffset];
+            x = nndense_output1[batchIndex + threadIdx.y * 4][lane_id].x +
+                nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].x +
+                model->biass[0][colOffset];
+            y = nndense_output1[batchIndex + threadIdx.y * 4][lane_id].y +
+                nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].y +
+                model->biass[1][colOffset];
+            z = nndense_output1[batchIndex + threadIdx.y * 4][lane_id].z +
+                nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].z +
+                model->biass[2][colOffset];
+            w = nndense_output1[batchIndex + threadIdx.y * 4][lane_id].w +
+                nndense_output1[batchIndex + threadIdx.y * 4][lane_id + 32].w +
+                model->biass[3][colOffset];
+
+            x = sigmoid(x);
+            y = tanh(y);
+            w = sigmoid(w);
+            z = sigmoid(z + 1.0000f) *
+                output->state_c_f1[(colOffset << 4) + batchIndex +
+                                   threadIdx.y * 4];
+            output
+                ->state_c_f1[(colOffset << 4) + batchIndex + threadIdx.y * 4] =
+                fma(x, y, z);
+            output
+                ->state_h_f1[(colOffset << 4) + batchIndex + threadIdx.y * 4] =
+                (tanh(output->state_c_f1[(colOffset << 4) + batchIndex +
+                                         threadIdx.y * 4])) *
+                w;
+        }
+    }
+}
+
+__device__ void onekernel_fuse_opt_v2_no_float4_with_adduw_bs16(
+    dim3 blockIdx1, WaveInputParamsBS16 *__restrict__ input,
+    WaveModelParamsBS16 *__restrict__ model,
+    WaveOutputParamsBS16 *__restrict__ output) {
+
+    const int warp_id = threadIdx.x >> 5;
+    const int lane_id = threadIdx.x & 0x1f;
+    const int colOffset = blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+    }
+    float temp1[16] = {0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+                       0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+                       0.0000f, 0.0000f, 0.0000f, 0.0000f};
+
+    const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
+    int vectorRow = ROWS * warp_id;
+    int kStart =
+        vectorRow * HIDDENSIZE + blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+    int kEnd = kStart + ROWS * HIDDENSIZE;
+    const int base_y = threadIdx.y * 4;
+    int rowIndex = vectorRow << 4;
+    for (; kStart < kEnd; kStart += HIDDENSIZE, rowIndex += 16) {
+        for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+            const float data = input->input_i_f1[rowIndex + base_y + batchIndex];
+            const float data2 = input->input_h_f1[rowIndex +
+                                                  batchIndex + base_y];
+
+            temp1[0 + 4 * batchIndex] = fma(model->weight_ws[0][kStart], data,
+                                            temp1[0 + 4 * batchIndex]);
+            temp1[1 + 4 * batchIndex] = fma(model->weight_ws[1][kStart], data,
+                                            temp1[1 + 4 * batchIndex]);
+            temp1[2 + 4 * batchIndex] = fma(model->weight_ws[2][kStart], data,
+                                            temp1[2 + 4 * batchIndex]);
+            temp1[3 + 4 * batchIndex] = fma(model->weight_ws[3][kStart], data,
+                                            temp1[3 + 4 * batchIndex]);
+            temp1[0 + 4 * batchIndex] = fma(model->weight_us[0][kStart], data2,
+                                            temp1[0 + 4 * batchIndex]);
+            temp1[1 + 4 * batchIndex] = fma(model->weight_us[1][kStart], data2,
+                                            temp1[1 + 4 * batchIndex]);
+            temp1[2 + 4 * batchIndex] = fma(model->weight_us[2][kStart], data2,
+                                            temp1[2 + 4 * batchIndex]);
+            temp1[3 + 4 * batchIndex] = fma(model->weight_us[3][kStart], data2,
+                                            temp1[3 + 4 * batchIndex]);
+        }
+    }
+
+    __syncthreads();
+
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        atomicAdd(
+            &model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 0]);
+        atomicAdd(
+            &model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 1]);
+        atomicAdd(
+            &model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 2]);
+        atomicAdd(
+            &model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 3]);
+    }
+    __syncthreads();
+
+    if (warp_id == 0) {
+        for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+            float x, y, z, w;
+            // float4 bias_t = model->bias[colOffset];
+            x = model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[0][colOffset];
+            y = model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[1][colOffset];
+            z = model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[2][colOffset];
+            w = model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[3][colOffset];
+
+            x = sigmoid(x);
+            y = tanh(y);
+            w = sigmoid(w);
+            z = sigmoid(z + 1.0000f) *
+                output->state_c_f1[(colOffset << 4) + batchIndex +
+                                   threadIdx.y * 4];
+            output
+                ->state_c_f1[(colOffset << 4) + batchIndex + threadIdx.y * 4] =
+                fma(x, y, z);
+            output
+                ->state_h_f1[(colOffset << 4) + batchIndex + threadIdx.y * 4] =
+                (tanh(output->state_c_f1[(colOffset << 4) + batchIndex +
+                                         threadIdx.y * 4])) *
+                w;
+        }
+    }
+}
+__device__ void onekernel_fuse_opt_v2_no_float4_with_adduw_bs16_report_perf(
+    dim3 blockIdx1, WaveInputParamsBS16 *__restrict__ input,
+    WaveModelParamsBS16 *__restrict__ model,
+    WaveOutputParamsBS16 *__restrict__ output) {
+
+    const int warp_id = threadIdx.x >> 5;
+    const int lane_id = threadIdx.x & 0x1f;
+    const int colOffset = blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+    }
+    float temp1[16] = {0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+                       0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f, 0.0000f,
+                       0.0000f, 0.0000f, 0.0000f, 0.0000f};
+
+    const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
+    int vectorRow = ROWS * warp_id;
+    int kStart =
+        vectorRow * HIDDENSIZE + blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+    int kEnd = kStart + ROWS * HIDDENSIZE;
+    const int base_y = threadIdx.y * 4;
+
+    for (; kStart < kEnd; kStart += HIDDENSIZE, ++vectorRow) {
+        for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+            const float data = input->input_i_f1[(vectorRow << 4) + batchIndex +
+                                                 threadIdx.y * 4];
+            const float data2 = input->input_h_f1[(vectorRow << 4) +
+                                                  batchIndex + threadIdx.y * 4];
+
+            temp1[0 + 4 * batchIndex] = fma(model->weight_ws[0][kStart], data,
+                                            temp1[0 + 4 * batchIndex]);
+            temp1[1 + 4 * batchIndex] = fma(model->weight_ws[1][kStart], data,
+                                            temp1[1 + 4 * batchIndex]);
+            temp1[2 + 4 * batchIndex] = fma(model->weight_ws[2][kStart], data,
+                                            temp1[2 + 4 * batchIndex]);
+            temp1[3 + 4 * batchIndex] = fma(model->weight_ws[3][kStart], data,
+                                            temp1[3 + 4 * batchIndex]);
+            temp1[0 + 4 * batchIndex] = fma(model->weight_us[0][kStart], data2,
+                                            temp1[0 + 4 * batchIndex]);
+            temp1[1 + 4 * batchIndex] = fma(model->weight_us[1][kStart], data2,
+                                            temp1[1 + 4 * batchIndex]);
+            temp1[2 + 4 * batchIndex] = fma(model->weight_us[2][kStart], data2,
+                                            temp1[2 + 4 * batchIndex]);
+            temp1[3 + 4 * batchIndex] = fma(model->weight_us[3][kStart], data2,
+                                            temp1[3 + 4 * batchIndex]);
+        }
+    }
+
+    __syncthreads();
+
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        atomicAdd(
+            &model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 0]);
+        atomicAdd(
+            &model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 1]);
+        atomicAdd(
+            &model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 2]);
+        atomicAdd(
+            &model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex * 4 + 3]);
+    }
+    __syncthreads();
+
+    if (warp_id == 0) {
+        for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+            float x, y, z, w;
+            // float4 bias_t = model->bias[colOffset];
+            x = model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[0][colOffset];
+            y = model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[1][colOffset];
+            z = model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[2][colOffset];
+            w = model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)]
+                           [colOffset] +
+                model->biass[3][colOffset];
+
+            x = sigmoid(x);
+            y = tanh(y);
+            w = sigmoid(w);
+            z = sigmoid(z + 1.0000f) *
+                output->state_c_f1[(colOffset << 4) + batchIndex +
+                                   threadIdx.y * 4];
+            output
+                ->state_c_f1[(colOffset << 4) + batchIndex + threadIdx.y * 4] =
+                fma(x, y, z);
+            output
+                ->state_h_f1[(colOffset << 4) + batchIndex + threadIdx.y * 4] =
+                (tanh(output->state_c_f1[(colOffset << 4) + batchIndex +
+                                         threadIdx.y * 4])) *
+                w;
+        }
+    }
+}
+
+
+__device__ void
+onekernel_fuse_opt_v2_global_bs16(dim3 blockIdx1,
+                                  WaveInputParamsBS16 *__restrict__ input,
+                                  WaveModelParamsBS16 *__restrict__ model,
+                                  WaveOutputParamsBS16 *__restrict__ output) {
+
+    const int warp_id = threadIdx.x >> 5;
+    const int lane_id = threadIdx.x & 0x1f;
+    const int colOffset = blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+   
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+        model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset] =
+            0.0000f;
+    }
+    float4 temp1[4] = {0.0000f};
+
+    const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
+    int vectorRow = ROWS * warp_id;
+    int kStart =
+        vectorRow * HIDDENSIZE + blockIdx1.x * COLUMNS_PER_BLOCK + lane_id;
+    int kEnd = kStart + ROWS * HIDDENSIZE;
+    for (; kStart < kEnd; kStart += HIDDENSIZE, ++vectorRow) {
+        const float4 data = input->input_i[vectorRow * 4 + threadIdx.y];
+        float4 res = model->weight_w[kStart];
+        const float4 data2 = input->input_h[vectorRow * 4 + threadIdx.y];
+        float4 res2 = model->weight_u[kStart];
+        temp1[0].x = fma(res.x, data.x, temp1[0].x);
+        temp1[0].y = fma(res.y, data.x, temp1[0].y);
+        temp1[0].z = fma(res.z, data.x, temp1[0].z);
+        temp1[0].w = fma(res.w, data.x, temp1[0].w);
+        temp1[0].x = fma(res2.x, data2.x, temp1[0].x);
+        temp1[0].y = fma(res2.y, data2.x, temp1[0].y);
+        temp1[0].z = fma(res2.z, data2.x, temp1[0].z);
+        temp1[0].w = fma(res2.w, data2.x, temp1[0].w);
+        // batch 1
+        temp1[1].x = fma(res.x, data.y, temp1[1].x);
+        temp1[1].y = fma(res.y, data.y, temp1[1].y);
+        temp1[1].z = fma(res.z, data.y, temp1[1].z);
+        temp1[1].w = fma(res.w, data.y, temp1[1].w);
+        temp1[1].x = fma(res2.x, data2.y, temp1[1].x);
+        temp1[1].y = fma(res2.y, data2.y, temp1[1].y);
+        temp1[1].z = fma(res2.z, data2.y, temp1[1].z);
+        temp1[1].w = fma(res2.w, data2.y, temp1[1].w);
+        // batch 2
+        temp1[2].x = fma(res.x, data.z, temp1[2].x);
+        temp1[2].y = fma(res.y, data.z, temp1[2].y);
+        temp1[2].z = fma(res.z, data.z, temp1[2].z);
+        temp1[2].w = fma(res.w, data.z, temp1[2].w);
+        temp1[2].x = fma(res2.x, data2.z, temp1[2].x);
+        temp1[2].y = fma(res2.y, data2.z, temp1[2].y);
+        temp1[2].z = fma(res2.z, data2.z, temp1[2].z);
+        temp1[2].w = fma(res2.w, data2.z, temp1[2].w);
+        // batch3
+        temp1[3].x = fma(res.x, data.w, temp1[3].x);
+        temp1[3].y = fma(res.y, data.w, temp1[3].y);
+        temp1[3].z = fma(res.z, data.w, temp1[3].z);
+        temp1[3].w = fma(res.w, data.w, temp1[3].w);
+        temp1[3].x = fma(res2.x, data2.w, temp1[3].x);
+        temp1[3].y = fma(res2.y, data2.w, temp1[3].y);
+        temp1[3].z = fma(res2.z, data2.w, temp1[3].z);
+        temp1[3].w = fma(res2.w, data2.w, temp1[3].w);
+    }
+    __syncthreads();
+    for (int batchIndex = 0; batchIndex < 4; ++batchIndex) {
+        atomicAdd(
+            &model->temp[0 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex].x);
+        atomicAdd(
+            &model->temp[1 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex].y);
+        atomicAdd(
+            &model->temp[2 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex].z);
+        atomicAdd(
+            &model->temp[3 + (threadIdx.y << 2) + (batchIndex << 4)][colOffset],
+            temp1[batchIndex].w);
+    }
+    __syncthreads();
+    if (warp_id == 0) {
+        float4 bs0, bs1, bs2, bs3, state_h;
+        float4 state_c = output->state_c[(colOffset << 2) + threadIdx.y];
+        float4 bias_t = model->bias[colOffset];
+        bs0.x = model->temp[0 + (threadIdx.y << 2) + (0 << 4)][colOffset] +
+                bias_t.x;
+        bs0.y = model->temp[1 + (threadIdx.y << 2) + (0 << 4)][colOffset] +
+                bias_t.y;
+        bs0.z = model->temp[2 + (threadIdx.y << 2) + (0 << 4)][colOffset] +
+                bias_t.z;
+        bs0.w = model->temp[3 + (threadIdx.y << 2) + (0 << 4)][colOffset] +
+                bias_t.w;
+        bs0.x = sigmoid(bs0.x);
+        bs0.y = tanh(bs0.y);
+        bs0.w = sigmoid(bs0.w);
+        bs0.z = sigmoid(bs0.z + 1.0000f) * state_c.x;
+        state_c.x = fma(bs0.x, bs0.y, bs0.z);
+        // batch 1
+        bs1.x = model->temp[0 + (threadIdx.y << 2) + 16][colOffset] + bias_t.x;
+        bs1.y = model->temp[1 + (threadIdx.y << 2) + 16][colOffset] + bias_t.y;
+        bs1.z = model->temp[2 + (threadIdx.y << 2) + 16][colOffset] + bias_t.z;
+        bs1.w = model->temp[3 + (threadIdx.y << 2) + 16][colOffset] + bias_t.w;
+        bs1.x = sigmoid(bs1.x);
+        bs1.y = tanh(bs1.y);
+        bs1.w = sigmoid(bs1.w);
+        bs1.z = sigmoid(bs1.z + 1.0000f) * state_c.y;
+        state_c.y = fma(bs1.x, bs1.y, bs1.z);
+        // batch 2
+        bs2.x = model->temp[0 + (threadIdx.y << 2) + 32][colOffset] + bias_t.x;
+        bs2.y = model->temp[1 + (threadIdx.y << 2) + 32][colOffset] + bias_t.y;
+        bs2.z = model->temp[2 + (threadIdx.y << 2) + 32][colOffset] + bias_t.z;
+        bs2.w = model->temp[3 + (threadIdx.y << 2) + 32][colOffset] + bias_t.w;
+        bs2.x = sigmoid(bs2.x);
+        bs2.y = tanh(bs2.y);
+        bs2.w = sigmoid(bs2.w);
+        bs2.z = sigmoid(bs2.z + 1.0000f) * state_c.z;
+        state_c.z = fma(bs2.x, bs2.y, bs2.z);
+        // batch 3
+        bs3.x = model->temp[0 + (threadIdx.y << 2) + 48][colOffset] + bias_t.x;
+        bs3.y = model->temp[1 + (threadIdx.y << 2) + 48][colOffset] + bias_t.y;
+        bs3.z = model->temp[2 + (threadIdx.y << 2) + 48][colOffset] + bias_t.z;
+        bs3.w = model->temp[3 + (threadIdx.y << 2) + 48][colOffset] + bias_t.w;
         bs3.x = sigmoid(bs3.x);
         bs3.y = tanh(bs3.y);
         bs3.w = sigmoid(bs3.w);

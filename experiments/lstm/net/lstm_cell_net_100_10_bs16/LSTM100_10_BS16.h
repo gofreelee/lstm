@@ -21,6 +21,9 @@ class LSTM100_10_BS16 {
     float4 *state_c_s, *state_h_s;
     float4 *weights_w, *weights_u, *bias_s;
     float4 *wi, *uh;
+    float *inputs_dev_s;
+    float *state_c_dev_s;
+    float *state_h_dev_s;
     WaveInputParamsBS16 *WaveInputParamsBS16_dev;
     WaveModelParamsBS16 *WaveModelParamsBS16_dev;
     WaveOutputParamsBS16 *WaveOutputParamsBS16_dev;
@@ -36,13 +39,23 @@ class LSTM100_10_BS16 {
     void compute();
     void finalize();
     float4 *getOutput() {
+        // cudaMemcpy(output_host,
+        //            state_h_dev_s +
+        //                hidden_size * ((num_step + 1) * num_layer - 1) * 16,
+        //            sizeof(float) * hidden_size * 16, cudaMemcpyDeviceToHost);
         cudaMemcpy(output_host,
                    state_h_s +
                        hidden_size * ((num_step + 1) * num_layer - 1) * 4,
-                   sizeof(float4) * hidden_size * 4, cudaMemcpyDeviceToHost);
-        // cudaMemcpy(output_host,
-        //            state_h_s + hidden_size * 10 * 4,
-        //            sizeof(float4) * hidden_size * 4, cudaMemcpyDeviceToHost);
+                   sizeof(float) * hidden_size * 16, cudaMemcpyDeviceToHost);
+        return output_host;
+    }
+
+    float4 *getOutputNoFloat4Version() {
+        cudaMemcpy(output_host,
+                   state_h_dev_s +
+                       hidden_size * ((num_step + 1) * num_layer - 1) * 16,
+                   sizeof(float) * hidden_size * 16, cudaMemcpyDeviceToHost);
+        
         return output_host;
     }
 };

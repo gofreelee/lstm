@@ -21,6 +21,9 @@ class LSTM100_10_BS4 {
     float4 *state_c_s, *state_h_s;
     float4 *weights_w, *weights_u, *bias_s;
     float4 *wi, *uh;
+    float *inputs_dev_s;
+    float *state_c_dev_s;
+    float *state_h_dev_s;
     WaveInputParamsBS4 *WaveInputParamsBS4_dev;
     WaveModelParamsBS4 *WaveModelParamsBS4_dev;
     WaveOutputParamsBS4 *WaveOutputParamsBS4_dev;
@@ -39,6 +42,23 @@ class LSTM100_10_BS4 {
         cudaMemcpy(output_host,
                    state_h_s + hidden_size * ((num_step + 1) * num_layer - 1),
                    sizeof(float4) * hidden_size, cudaMemcpyDeviceToHost);
+        // cudaMemcpy(output_host,
+        //          state_h_dev_s + 4 * hidden_size * ((num_step + 1) *
+        //          num_layer - 1), sizeof(float) * hidden_size * 4,
+        //          cudaMemcpyDeviceToHost);
+        //  cudaMemcpy(output_host,
+        //          state_h_dev_s + 4 * hidden_size * 10,
+        //          sizeof(float) * hidden_size * 4, cudaMemcpyDeviceToHost);
+        return output_host;
+    }
+
+    float4 *getOutputNoFloat4Version() {
+
+        cudaMemcpy(output_host,
+                   state_h_dev_s +
+                       4 * hidden_size * ((num_step + 1) * num_layer - 1),
+                   sizeof(float) * hidden_size * 4, cudaMemcpyDeviceToHost);
+
         return output_host;
     }
 };

@@ -1,5 +1,5 @@
 find_package(CUDA)
-set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_60,code=sm_60 -gencode arch=compute_61,code=sm_61 -gencode arch=compute_70,code=sm_70 -gencode arch=compute_75,code=sm_75  -gencode arch=compute_80,code=sm_80")
+set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -gencode arch=compute_80,code=sm_80")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -O2")
 set(CUDA_NVCC_FLAGS "${CUDA_NVCC_FLAGS} -cudart shared")
 include_directories(${CUDA_INCLUDE_DIRS})

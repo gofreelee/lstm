@@ -41,14 +41,15 @@ class LSTM100_10 {
           batch_size(lstm_100_10_batch_size) {}
     void init(const std::vector<LSTMNetHostParams> &parmas);
     void compute();
+    void computeAndSolve();
+    void computeAndSolve128();
+    void computeAndSolve512();
     void finalize();
     float *getOutput() {
         cudaMemcpy(output_host,
                    state_h_s + hidden_size * ((num_step + 1) * num_layer - 1),
                    sizeof(float) * hidden_size, cudaMemcpyDeviceToHost);
-        //  cudaMemcpy(output_host,
-        //            state_h_s + hidden_size * (10),
-        //            sizeof(float) * hidden_size, cudaMemcpyDeviceToHost);
+      
         return output_host;
     }
 };

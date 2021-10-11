@@ -12,7 +12,8 @@ class Seq2SeqNetFuse {
         : enc_step(encStep), dec_step(decStep), enc_layer(encLayer),
           dec_layer(decLayer), input_size(inputSize), hidden_size(hiddenSize) {}
     void initSeq2SeqNet(const std::vector<LSTMNetHostParams> &netParams);
-    void compute();
+    //void compute();
+    void computeAndSolve();
     void release();
     float *getOutput() {
         cudaMemcpy(output_host,
@@ -20,6 +21,7 @@ class Seq2SeqNetFuse {
                                  (dec_step + 1) * dec_layer - 1) *
                                     hidden_size),
                    sizeof(float) * hidden_size, cudaMemcpyDeviceToHost);
+       
         return output_host;
     }
 

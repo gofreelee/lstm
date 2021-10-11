@@ -1,28 +1,34 @@
-#define COLUMNS_PER_BLOCK 32 // one block compute 32 colums
-#define THREAD_NUMS_PER_BLOCK 256
-#define HIDDENSIZE 256
-#define INPUTSIZE HIDDENSIZE
+
+
+enum class GemvParams {
+    kColumsPerBlock_32 = 32,
+    kThreadNumPerBlock_256 = 256,
+    kHiddenSize_256 = 256,
+    kInputSize_256 = 256
+};
 
 #include <stdio.h>
 __device__ static inline float sigmoid(float x) {
     return 1.000000e+00f / (1.000000e+00f + __expf(0.000000e+00f - x));
 }
 
+template <int kColumsPerBlock, int kHiddenSize, int kInputSize,
+          int kThreadNumPerBlock>
 __global__ void gemv(const float *__restrict__ input,
                      const float *__restrict__ weight,
                      float *__restrict__ output) {
-    __shared__ float nndense_output[COLUMNS_PER_BLOCK];
+    __shared__ float nndense_output[kColumsPerBlock];
     const int warp_id = threadIdx.x >> 5;
     const int lane_id = threadIdx.x & 0x1f;
-    const int colOffset = blockIdx.x * COLUMNS_PER_BLOCK + lane_id;
+    const int colOffset = blockIdx.x * kColumsPerBlock + lane_id;
     nndense_output[lane_id] = 0.0000f;
     float temp = 0.0000f;
-    const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
+    const int ROWS = kInputSize / (kThreadNumPerBlock / 32);
     int vectorRow = ROWS * warp_id;
     int kStart =
-        vectorRow * HIDDENSIZE + blockIdx.x * COLUMNS_PER_BLOCK + lane_id;
-    int kEnd = kStart + ROWS * HIDDENSIZE;
-    for (; kStart < kEnd; kStart += HIDDENSIZE, ++vectorRow) {
+        vectorRow * kHiddenSize + blockIdx.x * kColumsPerBlock + lane_id;
+    int kEnd = kStart + ROWS * kHiddenSize;
+    for (; kStart < kEnd; kStart += kHiddenSize, ++vectorRow) {
         const float data = input[vectorRow];
         temp = fma(weight[kStart], data, temp);
     }
@@ -51,21 +57,23 @@ __global__ void solve(float *t00, float *t01, float *b0, float *t10, float *t11,
 }
 
 // 一次算w0 ~ w3 和 input 的四个gemv，  或者u0 ~ u3 和 state_h的gemv
+template <int kColumsPerBlock, int kHiddenSize, int kInputSize,
+          int kThreadNumPerBlock>
 __global__ void gem4v(const float *__restrict__ input,
                       const float4 *__restrict__ weight,
                       float4 *__restrict__ output) {
-    __shared__ float4 nndense_output[COLUMNS_PER_BLOCK];
+    __shared__ float4 nndense_output[kColumsPerBlock];
     const int warp_id = threadIdx.x >> 5;
     const int lane_id = threadIdx.x & 0x1f;
-    const int colOffset = blockIdx.x * COLUMNS_PER_BLOCK + lane_id;
+    const int colOffset = blockIdx.x * kColumsPerBlock + lane_id;
     nndense_output[lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
     float temp[4] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
-    const int ROWS = INPUTSIZE / (THREAD_NUMS_PER_BLOCK / 32);
+    const int ROWS = kInputSize / (kThreadNumPerBlock / 32);
     int vectorRow = ROWS * warp_id;
     int kStart =
-        vectorRow * HIDDENSIZE + blockIdx.x * COLUMNS_PER_BLOCK + lane_id;
-    int kEnd = kStart + ROWS * HIDDENSIZE;
-    for (; kStart < kEnd; kStart += HIDDENSIZE, ++vectorRow) {
+        vectorRow * kHiddenSize + blockIdx.x * kColumsPerBlock + lane_id;
+    int kEnd = kStart + ROWS * kHiddenSize;
+    for (; kStart < kEnd; kStart += kHiddenSize, ++vectorRow) {
         const float data = input[vectorRow];
         float4 res = weight[kStart];
         temp[0] = fma(res.x, data, temp[0]);
@@ -102,3 +110,19 @@ __global__ void solve_gem4v_res(float4 *__restrict__ wi,
     state_c[idx] = fma(x, y, z);
     state_h[idx] = (tanh(state_c[idx])) * w;
 }
+
+template __global__ void
+gemv<static_cast<int>(GemvParams::kColumsPerBlock_32),
+     static_cast<int>(GemvParams::kHiddenSize_256),
+     static_cast<int>(GemvParams::kInputSize_256),
+     static_cast<int>(GemvParams::kThreadNumPerBlock_256)>(
+    const float *__restrict__ input, const float *__restrict__ weight,
+    float *__restrict__ output);
+
+template __global__ void
+gem4v<static_cast<int>(GemvParams::kColumsPerBlock_32),
+      static_cast<int>(GemvParams::kHiddenSize_256),
+      static_cast<int>(GemvParams::kInputSize_256),
+      static_cast<int>(GemvParams::kThreadNumPerBlock_256)>(
+    const float *__restrict__ input, const float4 *__restrict__ weight,
+    float4 *__restrict__ output);

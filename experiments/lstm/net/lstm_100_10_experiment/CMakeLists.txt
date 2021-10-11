@@ -1,0 +1,2 @@
+cuda_add_library(LSTM100_10Experiment
+    LSTM100_10Experiment.cc LSTM100_10_4W_4U_16blocksExperiment.cc LSTM100_10_1W_64blocksExperiment.cc LSTM100_10_1W_1U_32blocksExperiment.cc LSTM100_10_2W_2U_16blocksExperiment.cc) 

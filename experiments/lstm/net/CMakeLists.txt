@@ -1,6 +1,5 @@
-add_subdirectory(naive_lstm)
-add_subdirectory(onekernel_lstm)
-add_subdirectory(wavefront_lstm_8_8_1_256)
-add_subdirectory(wavefront_lstm_10_100_1_256)
-add_subdirectory(lstm_cell)
-add_subdirectory(lstm_cell_net)
+# add_subdirectory(lstm_cell)
+# add_subdirectory(lstm_cell_net)
+add_subdirectory(lstm_cell_net_100_10)
+
+add_subdirectory(lstm_100_10_experiment)

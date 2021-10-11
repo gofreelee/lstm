@@ -1,2 +1,0 @@
-fn foo(a: int) {
-}

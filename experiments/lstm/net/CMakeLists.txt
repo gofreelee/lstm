@@ -1,7 +1,5 @@
 # add_subdirectory(lstm_cell)
 # add_subdirectory(lstm_cell_net)
 add_subdirectory(lstm_cell_net_100_10)
-add_subdirectory(seq2seq_net)
-# add_subdirectory(lstm_cell_net_100_10_bs4)
-# add_subdirectory(lstm_cell_net_100_10_bs16)
+
 add_subdirectory(lstm_100_10_experiment)

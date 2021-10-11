@@ -5,4 +5,3 @@ cuda_add_library(LstmTestData
 add_subdirectory(wavefront_lstm_10_100_256_test)
 # add_subdirectory(lstm_cell_test)
 # add_subdirectory(lstm_cell_net_test)
-add_subdirectory(seq2seq_net_test)

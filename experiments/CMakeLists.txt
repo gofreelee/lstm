@@ -18,4 +18,3 @@ find_package(absl CONFIG REQUIRED)
 find_package(GTest CONFIG REQUIRED)
 
 add_subdirectory(lstm)
-add_subdirectory(resnet50)

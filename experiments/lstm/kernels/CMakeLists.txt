@@ -27,10 +27,7 @@ file(GLOB IctLstm100_10_256_Fusedcompute_128threads_lib ictlstm100_10_256_fusedc
 file(GLOB IctLstm100_10_256_Fusedcompute_512threads_lib ictlstm100_10_256_fusedcompute_512threads_lib/*.cu)
 
 
-file(GLOB IctSeq2Seq_Naivefuse_lib  ictseq2seq_naivefuse_lib/*.cu)
 
-cuda_add_library(IctSeq2SeqLstm_cudalib
-   IctSeq2SeqLstmlib.cu)
 
 # cuda_add_library(IctLstmCellBS4
 #     IctLstmCellBS4.cu)
@@ -79,5 +76,4 @@ cuda_add_library(IctLstm100_10_256_Fusedcompute_512threads_cudalib
     ${IctLstm100_10_256_Fusedcompute_512threads_lib}
 )
 
-cuda_add_library(IctSeq2Seq_Naivefuse_cudalib
-    ${IctSeq2Seq_Naivefuse_lib})
+

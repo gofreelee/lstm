@@ -1,17 +1,12 @@
 
-__device__  inline void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer);
-__global__ void call_device_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer){
 
-    Dot_float_float_float_cuda_Dot_8157_block_kernel(input0, input1, output0, thread_id, block_id, shared_buffer);    
-}
-
-__global__  inline void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer)
+__global__  void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer)
 {
     if (thread_id >= 256){
         return;
     }
     const dim3 gridDim(8, 1, 1);
-    const dim3 blockDim(128, 1, 1);
+    const dim3 blockDim(256, 1, 1);
     const dim3 blockIdx(block_id, 0, 0);
     {
         {

@@ -1,13 +1,7 @@
 
-__device__  inline void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer);
-__global__ void call_device_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer){
-
-    Dot_float_float_float_cuda_Dot_8157_block_kernel(input0, input1, output0, thread_id, block_id, shared_buffer);    
-}
-
-__global__  inline void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer)
+__global__  void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* input0, float* input1, float* output0, int thread_id, int block_id, char *shared_buffer)
 {
-    if (thread_id >= 256){
+    if (thread_id >= 128){
         return;
     }
     const dim3 gridDim(8, 1, 1);
@@ -21,8 +15,8 @@ __global__  inline void Dot_float_float_float_cuda_Dot_8157_block_kernel(float* 
             if (col_id < 256)
             {
                 float val = 0;
-                int k_start = warp_id * 32;
-                int k_end = (warp_id + 1) * 32;
+                int k_start = warp_id * 64;
+                int k_end = (warp_id + 1) * 64;
                 for (int i = k_start; i < k_end; i++)
                 {
                     val = fma(input0[i], input1[i * 256 + col_id], val);

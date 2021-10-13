@@ -1,6 +1,6 @@
 Using report4.sqlite export for stats reports.
 Exporting [/opt/nvidia/nsight-systems/2020.4.3/target-linux-x64/reports/gpukernsum.py report4.sqlite] to console... 
-overall : 1.47 ms
+
 Time(%),Total Time (ns),Instances,Average,Minimum,Maximum,Name
 0.7,12824795,1100,11658.9,10784,18848,"wave_compute_100(WaveInputParams*, WaveModelParams*, WaveOutputParams*)"
 0.7,11877588,1100,10797.8,9983,18208,"wave_compute_9(WaveInputParams*, WaveModelParams*, WaveOutputParams*)"

@@ -1,0 +1,176 @@
+[58435] BenchmarkLstm_100_10_1_256_experiment_1W_64blocks@127.0.0.1
+  wave_compute_88(WaveInputParams*, WaveModelParams*, WaveOutputParams*), 2021-Oct-14 18:49:32, Context 1, Stream 14
+    Section: Compute Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Executed Ipc Active                                                         inst/cycle                           0.48
+    Executed Ipc Elapsed                                                        inst/cycle                           0.38
+    Issue Slots Busy                                                                     %                          12.42
+    Issued Ipc Active                                                           inst/cycle                           0.50
+    SM Busy                                                                              %                          12.42
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   All pipelines are under-utilized. Either this kernel is very small or it doesn't issue enough warps per       
+          scheduler. Check the Launch Statistics and Scheduler Statistics sections for further details.                 
+
+    Section: Memory Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Memory Throughput                                                         Gbyte/second                         850.97
+    Mem Busy                                                                             %                          53.70
+    Max Bandwidth                                                                        %                          59.03
+    L1/TEX Hit Rate                                                                      %                          19.93
+    L2 Compression Success Rate                                                          %                              0
+    L2 Compression Ratio                                                                                                0
+    L2 Hit Rate                                                                          %                          29.52
+    Mem Pipes Busy                                                                       %                          18.29
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+    Section: Warp State Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Warp Cycles Per Issued Instruction                                               cycle                          42.21
+    Warp Cycles Per Executed Instruction                                             cycle                          43.24
+    Avg. Active Threads Per Warp                                                                                       32
+    Avg. Not Predicated Off Threads Per Warp                                                                        31.46
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   On average each warp of this kernel spends 13.8 cycles being stalled waiting for the local/global instruction 
+          queue to be not full. This represents about 32.8% of the total average of 42.2 cycles between issuing two     
+          instructions. Typically this stall occurs only when executing local or global memory instructions extremely   
+          frequently. If applicable, consider combining multiple lower-width memory operations into fewer wider memory  
+          operations and try interleaving memory operations and math instructions.                                      
+
+    Section: Instruction Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Avg. Executed Instructions Per Scheduler                                          inst                       1,687.70
+    Executed Instructions                                                             inst                        729,088
+    Avg. Issued Instructions Per Scheduler                                            inst                       1,728.93
+    Issued Instructions                                                               inst                        746,899
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  wave_solve_88(WaveInputParams*, WaveModelParams*, WaveOutputParams*), 2021-Oct-14 18:49:33, Context 1, Stream 14
+    Section: Compute Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Executed Ipc Active                                                         inst/cycle                           0.11
+    Executed Ipc Elapsed                                                        inst/cycle                           0.04
+    Issue Slots Busy                                                                     %                           3.09
+    Issued Ipc Active                                                           inst/cycle                           0.12
+    SM Busy                                                                              %                           3.09
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   All pipelines are under-utilized. Either this kernel is very small or it doesn't issue enough warps per       
+          scheduler. Check the Launch Statistics and Scheduler Statistics sections for further details.                 
+
+    Section: Memory Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Memory Throughput                                                         Gbyte/second                          14.11
+    Mem Busy                                                                             %                           2.73
+    Max Bandwidth                                                                        %                           1.20
+    L1/TEX Hit Rate                                                                      %                           8.06
+    L2 Compression Success Rate                                                          %                              0
+    L2 Compression Ratio                                                                                                0
+    L2 Hit Rate                                                                          %                          37.65
+    Mem Pipes Busy                                                                       %                           0.86
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+    Section: Warp State Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Warp Cycles Per Issued Instruction                                               cycle                          27.67
+    Warp Cycles Per Executed Instruction                                             cycle                          32.37
+    Avg. Active Threads Per Warp                                                                                    31.05
+    Avg. Not Predicated Off Threads Per Warp                                                                        28.71
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   On average each warp of this kernel spends 15.5 cycles being stalled waiting for an immediate constant cache  
+          (IMC) miss. This represents about 56.0% of the total average of 27.7 cycles between issuing two               
+          instructions. A read from constant memory costs one memory read from global memory only on a cache miss;      
+          otherwise, it just costs one read from the constant cache. Immediate constants are encoded into the SASS      
+          instruction as 'c[bank][offset]'. All threads access the same value.                                          
+
+    Section: Instruction Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Avg. Executed Instructions Per Scheduler                                          inst                          61.07
+    Executed Instructions                                                             inst                         26,384
+    Avg. Issued Instructions Per Scheduler                                            inst                          71.44
+    Issued Instructions                                                               inst                         30,864
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  wave_compute_108(WaveInputParams*, WaveModelParams*, WaveOutputParams*), 2021-Oct-14 18:49:33, Context 1, Stream 14
+    Section: Compute Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Executed Ipc Active                                                         inst/cycle                           0.32
+    Executed Ipc Elapsed                                                        inst/cycle                           0.11
+    Issue Slots Busy                                                                     %                           8.52
+    Issued Ipc Active                                                           inst/cycle                           0.34
+    SM Busy                                                                              %                           8.52
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   All pipelines are under-utilized. Either this kernel is very small or it doesn't issue enough warps per       
+          scheduler. Check the Launch Statistics and Scheduler Statistics sections for further details.                 
+
+    Section: Memory Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Memory Throughput                                                         Gbyte/second                         224.68
+    Mem Busy                                                                             %                          17.83
+    Max Bandwidth                                                                        %                          17.82
+    L1/TEX Hit Rate                                                                      %                          19.16
+    L2 Compression Success Rate                                                          %                              0
+    L2 Compression Ratio                                                                                                0
+    L2 Hit Rate                                                                          %                          32.84
+    Mem Pipes Busy                                                                       %                           5.57
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+    Section: Warp State Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Warp Cycles Per Issued Instruction                                               cycle                          24.12
+    Warp Cycles Per Executed Instruction                                             cycle                          25.36
+    Avg. Active Threads Per Warp                                                                                       32
+    Avg. Not Predicated Off Threads Per Warp                                                                        31.71
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+    Section: Instruction Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Avg. Executed Instructions Per Scheduler                                          inst                         161.19
+    Executed Instructions                                                             inst                         69,632
+    Avg. Issued Instructions Per Scheduler                                            inst                         169.48
+    Issued Instructions                                                               inst                         73,216
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+  wave_solve_108(WaveInputParams*, WaveModelParams*, WaveOutputParams*), 2021-Oct-14 18:49:34, Context 1, Stream 14
+    Section: Compute Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Executed Ipc Active                                                         inst/cycle                           0.07
+    Executed Ipc Elapsed                                                        inst/cycle                           0.00
+    Issue Slots Busy                                                                     %                           1.85
+    Issued Ipc Active                                                           inst/cycle                           0.07
+    SM Busy                                                                              %                           1.85
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   All pipelines are under-utilized. Either this kernel is very small or it doesn't issue enough warps per       
+          scheduler. Check the Launch Statistics and Scheduler Statistics sections for further details.                 
+
+    Section: Memory Workload Analysis
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Memory Throughput                                                         Gbyte/second                           1.78
+    Mem Busy                                                                             %                           0.72
+    Max Bandwidth                                                                        %                           0.29
+    L1/TEX Hit Rate                                                                      %                           8.06
+    L2 Compression Success Rate                                                          %                              0
+    L2 Compression Ratio                                                                                                0
+    L2 Hit Rate                                                                          %                          60.23
+    Mem Pipes Busy                                                                       %                           0.04
+    ---------------------------------------------------------------------- --------------- ------------------------------
+
+    Section: Warp State Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Warp Cycles Per Issued Instruction                                               cycle                          26.98
+    Warp Cycles Per Executed Instruction                                             cycle                          29.62
+    Avg. Active Threads Per Warp                                                                                    30.33
+    Avg. Not Predicated Off Threads Per Warp                                                                        26.35
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    WRN   On average each warp of this kernel spends 13.0 cycles being stalled waiting for an immediate constant cache  
+          (IMC) miss. This represents about 48.2% of the total average of 27.0 cycles between issuing two               
+          instructions. A read from constant memory costs one memory read from global memory only on a cache miss;      
+          otherwise, it just costs one read from the constant cache. Immediate constants are encoded into the SASS      
+          instruction as 'c[bank][offset]'. All threads access the same value.                                          
+
+    Section: Instruction Statistics
+    ---------------------------------------------------------------------- --------------- ------------------------------
+    Avg. Executed Instructions Per Scheduler                                          inst                           3.59
+    Executed Instructions                                                             inst                          1,552
+    Avg. Issued Instructions Per Scheduler                                            inst                           3.94
+    Issued Instructions                                                               inst                          1,704
+    ---------------------------------------------------------------------- --------------- ------------------------------
+

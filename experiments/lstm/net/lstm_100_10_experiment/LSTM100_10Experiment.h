@@ -25,6 +25,10 @@ class LSTM100_10Experiment {
         : num_step(lstm_100_10_num_step), num_layer(lstm_100_10_num_layer),
           hidden_size(lstm_100_10_hidden_size),
           batch_size(lstm_100_10_batch_size) {}
+    LSTM100_10Experiment(size_t num_step_, size_t num_layer_)
+        : num_step(num_step_), num_layer(num_layer_),
+          hidden_size(lstm_100_10_hidden_size),
+          batch_size(lstm_100_10_batch_size) {}
     void init(const std::vector<LSTMNetHostParams> &parmas);
     virtual void computeAndSolve();
 

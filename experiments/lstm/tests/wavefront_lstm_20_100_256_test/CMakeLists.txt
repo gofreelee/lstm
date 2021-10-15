@@ -1,0 +1,2 @@
+add_subdirectory(utils)
+add_subdirectory(wavefront_lstm_20_100_1_256_adjust_kernel_compute_test)

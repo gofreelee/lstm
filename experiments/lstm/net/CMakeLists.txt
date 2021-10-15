@@ -3,3 +3,4 @@
 add_subdirectory(lstm_cell_net_100_10)
 
 add_subdirectory(lstm_100_10_experiment)
+add_subdirectory(lstm_100_20_experiment)

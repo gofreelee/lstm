@@ -26,7 +26,11 @@ file(GLOB IctLstm100_10_256_Fusedcompute_128threads_lib ictlstm100_10_256_fusedc
 
 file(GLOB IctLstm100_10_256_Fusedcompute_512threads_lib ictlstm100_10_256_fusedcompute_512threads_lib/*.cu)
 
+file(GLOB 1W_1U_32blocks_20cells_lib adjust_compute_task_each_block/1W_1U_32blocks_20cells/*.cu)
 
+file(GLOB 1W_64blocks_20cells_lib adjust_compute_task_each_block/1W_64blocks_20cells/*.cu)
+
+file(GLOB 4W_4U_16blocks_20cells_lib adjust_compute_task_each_block/4W_4U_16blocks_20cells/*.cu)
 
 
 # cuda_add_library(IctLstmCellBS4
@@ -52,6 +56,16 @@ cuda_add_library(LstmExperiment1W_1U_32blocks_lib
 
 cuda_add_library(LstmExperiment2W_2U_16blocks_lib
     ${2W_2U_16blocks_lib})
+
+cuda_add_library(LstmExperiment1W_1U_32blocks_20cells_lib
+    ${1W_1U_32blocks_20cells_lib})
+
+cuda_add_library(LstmExperiment1W_64blocks_20cells_lib
+    ${1W_64blocks_20cells_lib})
+
+cuda_add_library(LstmExperiment4W_4U_16blocks_20cells_lib
+    ${4W_4U_16blocks_20cells_lib}
+)
 
 cuda_add_library(IctLstm100_10_256_Naivefuse_Fusedsolve_Fusedcompute_cudalib
     ${IctLstm100_10_256_Naivefuse_Fusedsolve_Fusedcompute_lib})

@@ -1,0 +1,6 @@
+#include "LstmExperimentLib.h"
+__global__ void __launch_bounds__(256, 1)wave_compute_114(WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output){switch (blockIdx.x >> 3) {
+case 0:call_onekernel_compute_wi(15, 99);break;case 1:call_onekernel_compute_wi(16, 98);break;case 2:call_onekernel_compute_wi(17, 97);break;case 3:call_onekernel_compute_wi(18, 96);break;case 4:call_onekernel_compute_wi(19, 95);break;case 5:call_onekernel_compute_uh(15, 99);break;case 6:call_onekernel_compute_uh(16, 98);break;case 7:call_onekernel_compute_uh(17, 97);break;case 8:call_onekernel_compute_uh(18, 96);break;case 9:call_onekernel_compute_uh(19, 95);break;}
+}__global__ void __launch_bounds__(256, 1)wave_solve_114(WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output){switch (blockIdx.x >> 3) {
+case 0:call_onekernel_solve(15, 99);break;case 1:call_onekernel_solve(16, 98);break;case 2:call_onekernel_solve(17, 97);break;case 3:call_onekernel_solve(18, 96);break;case 4:call_onekernel_solve(19, 95);break;}
+}

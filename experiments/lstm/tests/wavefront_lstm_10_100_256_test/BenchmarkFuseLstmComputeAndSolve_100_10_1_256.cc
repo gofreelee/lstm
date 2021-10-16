@@ -2,6 +2,7 @@
 #include "cuda_runtime.h"
 #include "net/lstm_cell_net_100_10/LSTM100_10.h"
 #include "utils/test_utils.h"
+#include <chrono>
 #include <fcntl.h>
 #include <memory>
 #include <sys/stat.h>
@@ -17,6 +18,7 @@ int main(int argc, char *argv[]) {
 
     using namespace mica::experiments::lstm;
     enum {
+        kWarmup = 100,
         kLoop = 1000,
     };
     int fd = open("./test_data/inputParams.bin", O_CREAT | O_RDWR,
@@ -43,38 +45,26 @@ int main(int argc, char *argv[]) {
     impl->init(params);
     cudaDeviceSynchronize();
 
-    timeval time_start;
-    timeval time_end;
-    long long walltimes = 0;
-    std::vector<double> recordVec;
-    double maxTime = 0;
-    double minTime = 10;
-    for (int i = 0; i < 100; ++i) {
-        gettimeofday(&time_start, NULL);
+    for (int i = 0; i < kWarmup; ++i) {
         impl->computeAndSolve();
-        gettimeofday(&time_end, NULL);
-        long long once_time = (time_end.tv_sec - time_start.tv_sec) * 1000000 +
-                              time_end.tv_usec - time_start.tv_usec;
     }
+    double min_ms = std::numeric_limits<double>::max();
+    double max_ms = std::numeric_limits<double>::min();
+    double total_ms = 0.00000f;
     for (int i = 0; i < kLoop; i++) {
         // Different, input/output memcpy time
-        gettimeofday(&time_start, NULL);
+        auto start = std::chrono::steady_clock::now();
         impl->computeAndSolve();
-        gettimeofday(&time_end, NULL);
-        long long once_time = (time_end.tv_sec - time_start.tv_sec) * 1000000 +
-                              time_end.tv_usec - time_start.tv_usec;
-        maxTime = (static_cast<double>(once_time) / 1000000) > maxTime
-                      ? (static_cast<double>(once_time) / 1000000)
-                      : maxTime;
-        minTime = (static_cast<double>(once_time) / 1000000) < minTime
-                      ? (static_cast<double>(once_time) / 1000000)
-                      : minTime;
-        walltimes += once_time;
-        std::cout << "once time : " << once_time << std::endl;
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        double iteration_ms = elapsed.count();
+        printf("Iteration time %f ms\n", iteration_ms);
+        min_ms = std::min(iteration_ms, min_ms);
+        max_ms = std::max(iteration_ms, max_ms);
+        total_ms = total_ms + iteration_ms;
     }
-    double t = static_cast<double>(walltimes) / 1000000;
-    std::cout << "Average Elapsed time (ms): " << t << std::endl;
-    std::cout << "Max Elapsed time (ms) :" << maxTime * 1000 << "\n"
-              << "Min Elapsed time (ms) :" << minTime * 1000 << std::endl;
+    printf("Sumamry: [min, max, mean] = [%f, %f, %f] ms\n", min_ms, max_ms,
+           total_ms / kLoop);
+
     impl->finalize();
 }

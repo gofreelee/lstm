@@ -38,7 +38,7 @@ def generate_waves_2W_2U_16blocks():
         if i <= 9:
             # for j in range(i + 1):
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4) wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(i + 1):
@@ -53,7 +53,7 @@ def generate_waves_2W_2U_16blocks():
             fd.write("}")
 
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4) wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(i + 1):
@@ -65,7 +65,7 @@ def generate_waves_2W_2U_16blocks():
             fd.write("}")
         if i > 9 and i <= 99:
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4) wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             index = 0
@@ -85,7 +85,7 @@ def generate_waves_2W_2U_16blocks():
             fd.write("}")
 
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4) wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             index = 0
@@ -98,7 +98,7 @@ def generate_waves_2W_2U_16blocks():
             fd.write("}")
         if i > 99:
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4) wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(108 - i + 1):
@@ -113,7 +113,7 @@ def generate_waves_2W_2U_16blocks():
             fd.write("}")
 
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4) wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(108 - i + 1):

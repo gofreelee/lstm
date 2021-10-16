@@ -1,10 +1,11 @@
-#include "tests/wavefront_lstm_10_100_256_test/LstmTest_100_10.h"
 #include "cuda_runtime.h"
+#include "tests/wavefront_lstm_10_100_256_test/LstmTest_100_10.h"
 #include <cuda_profiler_api.h>
 
 #include "net/lstm_100_10_experiment/LSTM100_10Experiment.h"
 #include "net/lstm_100_10_experiment/LSTM100_10_1W_64blocksExperiment.h"
 #include "tests/wavefront_lstm_10_100_256_test/utils/test_utils.h"
+#include <chrono>
 #include <fcntl.h>
 #include <memory>
 #include <sys/stat.h>
@@ -20,6 +21,7 @@ int main(int argc, char *argv[]) {
 
     using namespace mica::experiments::lstm;
     enum {
+        kWarmup = 100,
         kLoop = 1000,
     };
     int fd = open("./test_data/inputParams.bin", O_CREAT | O_RDWR,
@@ -30,7 +32,8 @@ int main(int argc, char *argv[]) {
         readInputParamsFuse(fd, hidden_size, batch_size, num_layer, num_step);
 
     float *kExpected = readExpectedResult(result_fd, hidden_size);
-    std::shared_ptr<LSTM100_10Experiment> impl(new LSTM100_10_1W_64blocksExperiment());
+    std::shared_ptr<LSTM100_10Experiment> impl(
+        new LSTM100_10_1W_64blocksExperiment());
     int nDevices;
     cudaGetDeviceCount(&nDevices);
     for (int i = 0; i < nDevices; i++) {
@@ -43,58 +46,28 @@ int main(int argc, char *argv[]) {
         printf("  Peak Memory Bandwidth (GB/s): %f\n\n",
                2.0 * prop.memoryClockRate * (prop.memoryBusWidth / 8) / 1.0e6);
     }
-    float ms_max = std::numeric_limits<float>::min();
-    float ms_min = std::numeric_limits<float>::max();
-    float ms_total, ms_i;
-    cudaEvent_t start, stop, start_i, stop_i;
-    cudaEventCreate(&start);
-    cudaEventCreate(&stop);
-    cudaEventCreate(&start_i);
-    cudaEventCreate(&stop_i);
-
-    // time measurement
-    cudaEventRecord(start);
     impl->init(params);
     cudaDeviceSynchronize();
 
-    timeval time_start;
-    timeval time_end;
-    long long walltimes = 0;
-    std::vector<double> recordVec;
-    double maxTime = 0;
-    double minTime = 10;
-    for (int i = 0; i < 100; ++i) {
-        cudaEventRecord(start_i, 0);
+    for (int i = 0; i < kWarmup; ++i) {
         impl->computeAndSolve();
-        cudaEventRecord(stop_i, 0);
-        cudaEventSynchronize(stop_i);
-        cudaEventElapsedTime(&ms_i, start_i, stop_i);
-        printf("Iteration time %f ms\n", ms_i);
-        if (ms_i > ms_max)
-            ms_max = ms_i;
-        if (ms_i < ms_min)
-            ms_min = ms_i;
     }
+    double min_ms = std::numeric_limits<double>::max();
+    double max_ms = std::numeric_limits<double>::min();
+    double total_ms = 0.00000f;
     for (int i = 0; i < kLoop; i++) {
         // Different, input/output memcpy time
-        cudaEventRecord(start_i, 0);
+        auto start = std::chrono::steady_clock::now();
         impl->computeAndSolve();
-        cudaEventRecord(stop_i, 0);
-        cudaEventSynchronize(stop_i);
-        cudaEventElapsedTime(&ms_i, start_i, stop_i);
-        printf("Iteration time %f ms\n", ms_i);
-        if (ms_i > ms_max)
-            ms_max = ms_i;
-        if (ms_i < ms_min)
-            ms_min = ms_i;
+        auto end = std::chrono::steady_clock::now();
+        std::chrono::duration<double, std::milli> elapsed = end - start;
+        double iteration_ms = elapsed.count();
+        printf("Iteration time %f ms\n", iteration_ms);
+        min_ms = std::min(iteration_ms, min_ms);
+        max_ms = std::max(iteration_ms, max_ms);
+        total_ms = total_ms + iteration_ms;
     }
-    cudaProfilerStop();
-    // time measurement
-
-    cudaEventRecord(stop);
-    cudaEventSynchronize(stop);
-    cudaEventElapsedTime(&ms_total, start, stop);
-    printf("Summary: [min, max, mean] = [%f, %f, %f] ms\n", ms_min, ms_max,
-           ms_total / kLoop);
+    printf("Sumamry: [min, max, mean] = [%f, %f, %f] ms\n", min_ms, max_ms,
+           total_ms / kLoop);
     impl->finalize();
 }

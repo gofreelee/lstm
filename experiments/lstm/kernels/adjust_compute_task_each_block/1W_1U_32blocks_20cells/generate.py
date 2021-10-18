@@ -9,7 +9,7 @@ def generate_1W_1U_32blocks_waves():
         if i <= 19:
             # for j in range(i + 1):
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(i + 1):
@@ -32,7 +32,7 @@ def generate_1W_1U_32blocks_waves():
             fd.write("}")
             #
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(i + 1):
@@ -43,7 +43,7 @@ def generate_1W_1U_32blocks_waves():
             fd.write("}")  
         if i > 19 and i <= 99:
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             index = 0
@@ -77,7 +77,7 @@ def generate_1W_1U_32blocks_waves():
             fd.write("}")
             #
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             index = 0
@@ -90,7 +90,7 @@ def generate_1W_1U_32blocks_waves():
             fd.write("}")
         if i > 99:
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4)wave_compute_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(118 - i + 1):
@@ -114,7 +114,7 @@ def generate_1W_1U_32blocks_waves():
             fd.write("}")
             #
             fd.write(
-                "__global__ void __launch_bounds__(256, 1)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
+                "__global__ void __launch_bounds__(256, 4)wave_solve_"+str(i)+"(" + "WaveInputParams *__restrict__ input, WaveModelParams *__restrict__ model,WaveOutputParams *__restrict__ output")
             fd.write("){")
             fd.write("switch (blockIdx.x >> 3) {\n")
             for m in range(118 - i + 1):
@@ -139,4 +139,4 @@ def genarate_function_call():
             fd.write("cudaLaunchKernel((void *)wave_compute_" + str(i) + ", dim3("+ str(32 * (119 - i)) +"), dim3(256), (void **)arg_s, 0,stream);\n")
             fd.write("cudaLaunchKernel((void *)wave_solve_" + str(i) + ", dim3("+ str(8 * (119 - i)) +"), dim3(256), (void **)arg_s, 0,stream);\n")
 
-genarate_function_call()
+generate_1W_1U_32blocks_waves()

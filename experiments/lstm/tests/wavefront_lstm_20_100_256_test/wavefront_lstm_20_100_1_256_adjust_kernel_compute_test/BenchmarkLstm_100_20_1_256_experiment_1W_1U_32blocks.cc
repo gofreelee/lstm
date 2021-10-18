@@ -78,6 +78,8 @@ int main(int argc, char *argv[]) {
         if (ms_i < ms_min)
             ms_min = ms_i;
     }
+        cudaEventRecord(start);
+
     for (int i = 0; i < kLoop; i++) {
         // Different, input/output memcpy time
         cudaEventRecord(start_i, 0);

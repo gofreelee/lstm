@@ -32,6 +32,7 @@ file(GLOB 1W_64blocks_20cells_lib adjust_compute_task_each_block/1W_64blocks_20c
 
 file(GLOB 4W_4U_16blocks_20cells_lib adjust_compute_task_each_block/4W_4U_16blocks_20cells/*.cu)
 
+file(GLOB 8W_8blocks_20cells_lib adjust_compute_task_each_block/8W_8blocks_20cells/*.cu)
 
 # cuda_add_library(IctLstmCellBS4
 #     IctLstmCellBS4.cu)
@@ -65,6 +66,10 @@ cuda_add_library(LstmExperiment1W_64blocks_20cells_lib
 
 cuda_add_library(LstmExperiment4W_4U_16blocks_20cells_lib
     ${4W_4U_16blocks_20cells_lib}
+)
+
+cuda_add_library(LstmExperiment8W_8blocks_20cells_lib
+    ${8W_8blocks_20cells_lib}
 )
 
 cuda_add_library(IctLstm100_10_256_Naivefuse_Fusedsolve_Fusedcompute_cudalib

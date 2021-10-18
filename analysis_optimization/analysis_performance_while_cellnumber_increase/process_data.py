@@ -1,7 +1,7 @@
 import csv
 
 
-csv_file =  open("4gemv_sum_20cells.csv")
+csv_file =  open("8gemv_sum_20cells.csv")
 time_data = [n for n in range(119)]
 for i in csv_file:
     row_data = i.split(',')

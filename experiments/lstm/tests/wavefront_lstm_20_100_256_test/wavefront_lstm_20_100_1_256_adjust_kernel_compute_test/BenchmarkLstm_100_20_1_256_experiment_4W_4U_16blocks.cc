@@ -56,7 +56,6 @@ int main(int argc, char *argv[]) {
     cudaEventCreate(&stop_i);
 
     // time measurement
-    cudaEventRecord(start);
     impl->init(params);
     cudaDeviceSynchronize();
 
@@ -78,6 +77,8 @@ int main(int argc, char *argv[]) {
         if (ms_i < ms_min)
             ms_min = ms_i;
     }
+
+    cudaEventRecord(start);
     for (int i = 0; i < kLoop; i++) {
         // Different, input/output memcpy time
         cudaEventRecord(start_i, 0);

@@ -2020,4 +2020,336 @@ void LSTM100_10::computeAndSolve512() {
     cudaLaunchKernel((void *)wave_solve_108, dim3(8), dim3(256), (void **)arg_s,
                      0, stream);
 }
+
+void LSTM100_10::copmuteEach16blocks() {
+    void *arg_s[] = {&waveInputParams_dev, &waveModelParams_dev,
+                     &waveOutputParams_dev};
+    cudaLaunchKernel((void *)wave0, dim3(16), dim3(256), (void **)arg_s, 0,
+                     stream);
+    cudaLaunchKernel((void *)wave1, dim3(32), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave2, dim3(48), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave3, dim3(64), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave4, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave5, dim3(96), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave6, dim3(112), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave7, dim3(128), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave8, dim3(144), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave9, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave10, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave11, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave12, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave13, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave14, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave15, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave16, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave17, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave18, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave19, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave20, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave21, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave22, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave23, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave24, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave25, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave26, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave27, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave28, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave29, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave30, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave31, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave32, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave33, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave34, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave35, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave36, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave37, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave38, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave39, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave40, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave41, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave42, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave43, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave44, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave45, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave46, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave47, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave48, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave49, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave50, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave51, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave52, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave53, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave54, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave55, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave56, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave57, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave58, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave59, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave60, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave61, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave62, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave63, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave64, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave65, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave66, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave67, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave68, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave69, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave70, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave71, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave72, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave73, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave74, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave75, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave76, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave77, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave78, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave79, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave80, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave81, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave82, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave83, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave84, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave85, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave86, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave87, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave88, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave89, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave90, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave91, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave92, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave93, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave94, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave95, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave96, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave97, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave98, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave99, dim3(160), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave100, dim3(144), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave101, dim3(128), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave102, dim3(112), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave103, dim3(96), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave104, dim3(80), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave105, dim3(64), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave106, dim3(48), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaLaunchKernel((void *)wave107, dim3(32), dim3(256), (void **)arg_s, 0,
+                     stream);
+    cudaLaunchKernel((void *)wave108, dim3(16), dim3(256), (void **)arg_s, 0,
+                     stream);
+
+    cudaDeviceSynchronize();
+}
+
 } // namespace mica::experiments::lstm

@@ -116,9 +116,9 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
 
     const int warp_id = threadIdx.x >> 5;
     const int lane_id = threadIdx.x & 0x1f;
-    if (lane_id > 15)
-        return;
-    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id;
+    //if (lane_id > 15)
+    //    return;
+    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id&0x0f;
     // nndense_output1[lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
     model->temp[0][colOffset] = 0.0;
     model->temp[1][colOffset] = 0.0;
@@ -127,10 +127,10 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
     float temp1[4] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
 
     const int ROWS = kInputSize / (kThreadNumPerBlock / 32);
-    int vectorRow = ROWS * warp_id;
+    int vectorRow = ROWS * warp_id + (lane_id>>4) * 16;
     int kStart =
-        vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock + lane_id;
-    int kEnd = kStart + ROWS * kHiddenSize;
+        vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock + lane_id&0x0f;
+    int kEnd = kStart + ROWS/2 * kHiddenSize;
     // This loop was unrolled 4 times in SASS code, I tested other unroll
     // parameters, e.g. 2, 4,6, 8, 4 is the best one
     //#pragma unroll 4
@@ -153,7 +153,7 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
     atomicAdd(&model->temp[2][colOffset], temp1[2]);
     atomicAdd(&model->temp[3][colOffset], temp1[3]);
     __syncthreads();
-    if (warp_id == 0) {
+    if (warp_id == 0 && lane_id <=15 ) {
 
         float x, y, z, w;
         x = model->temp[0][colOffset] + model->biass[0][colOffset];

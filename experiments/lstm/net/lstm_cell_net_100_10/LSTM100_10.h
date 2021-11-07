@@ -41,6 +41,7 @@ class LSTM100_10 {
           batch_size(lstm_100_10_batch_size) {}
     void init(const std::vector<LSTMNetHostParams> &parmas);
     void compute();
+    void copmuteEach16blocks();
     void computeAndSolve();
     void computeAndSolve128();
     void computeAndSolve512();

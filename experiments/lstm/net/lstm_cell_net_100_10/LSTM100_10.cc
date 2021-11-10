@@ -149,6 +149,7 @@ void LSTM100_10::finalize() {
 void LSTM100_10::compute() {
     void *arg_s[] = {&waveInputParams_dev, &waveModelParams_dev,
                      &waveOutputParams_dev};
+                     
     cudaLaunchKernel((void *)wave0, dim3(8), dim3(256), (void **)arg_s, 0,
                      stream);
     cudaLaunchKernel((void *)wave1, dim3(16), dim3(256), (void **)arg_s, 0,
@@ -2035,7 +2036,7 @@ void LSTM100_10::copmuteEach16blocks() {
     cudaLaunchKernel((void *)wave3, dim3(64), dim3(256), (void **)arg_s, 0,
                      stream);
 
-    cudaLaunchKernel((void *)wave4, dim3(160), dim3(256), (void **)arg_s, 0,
+    cudaLaunchKernel((void *)wave4, dim3(80), dim3(256), (void **)arg_s, 0,
                      stream);
 
     cudaLaunchKernel((void *)wave5, dim3(96), dim3(256), (void **)arg_s, 0,

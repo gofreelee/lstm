@@ -128,7 +128,7 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
     const int lane_id = threadIdx.x & 0x1f;
     // if (lane_id > 15)
     //     return;
-    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id & 0x0f;
+    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id % 16;
     // nndense_output1[lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
     model->temp[0][colOffset] = 0.0;
     model->temp[1][colOffset] = 0.0;
@@ -141,7 +141,7 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
     // int kStart = vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock +
     //              (lane_id & 0xf);
     int kStart = vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock +
-                 (lane_id & 0xf);
+                 (lane_id % 16);
     int kEnd = kStart + ROWS / 2 * kHiddenSize;
     // This loop was unrolled 4 times in SASS code, I tested other unroll
     // parameters, e.g. 2, 4,6, 8, 4 is the best one

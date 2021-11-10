@@ -50,6 +50,16 @@ enum LstmScaleParams {
             output + kOutputOffset);                                           \
     }
 
+#define call_onekernel_naivefuse_fusedsolve_fusedcompute_adduw_float4(         \
+    kInputOffset, kModelOffset, kOutputOffset, kColumsPerBlock, kHiddenSize,   \
+    kInputSize, kThreadNumperBlock, kMask)                                     \
+    {                                                                          \
+        onekernel_fuse_opt_v2_float4_with_adduw_global<                        \
+            kColumsPerBlock, kHiddenSize, kInputSize, kThreadNumperBlock>(     \
+            blockIdx.x & kMask, input + kInputOffset, model + kModelOffset,    \
+            output + kOutputOffset);                                           \
+    }
+
 #define call_onekernel_naivefuse_fusedsolve_fusedcompute_adduw_16blocks_eachcell( \
     kInputOffset, kModelOffset, kOutputOffset, kColumsPerBlock, kHiddenSize,      \
     kInputSize, kThreadNumperBlock, kMask)                                        \
@@ -116,9 +126,9 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
 
     const int warp_id = threadIdx.x >> 5;
     const int lane_id = threadIdx.x & 0x1f;
-    if (lane_id > 15)
-        return;
-    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id;
+    // if (lane_id > 15)
+    //     return;
+    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id & 0x0f;
     // nndense_output1[lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
     model->temp[0][colOffset] = 0.0;
     model->temp[1][colOffset] = 0.0;
@@ -127,10 +137,12 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
     float temp1[4] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
 
     const int ROWS = kInputSize / (kThreadNumPerBlock / 32);
-    int vectorRow = ROWS * warp_id;
-    int kStart =
-        vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock + lane_id;
-    int kEnd = kStart + ROWS * kHiddenSize;
+    int vectorRow = ROWS * warp_id + (lane_id >> 4) * 16;
+    // int kStart = vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock +
+    //              (lane_id & 0xf);
+    int kStart = vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock +
+                 (lane_id & 0xf);
+    int kEnd = kStart + ROWS / 2 * kHiddenSize;
     // This loop was unrolled 4 times in SASS code, I tested other unroll
     // parameters, e.g. 2, 4,6, 8, 4 is the best one
     //#pragma unroll 4
@@ -153,7 +165,7 @@ onekernel_fuse_opt_v2_no_float4_with_adduw_global_16blocks_eachcell(
     atomicAdd(&model->temp[2][colOffset], temp1[2]);
     atomicAdd(&model->temp[3][colOffset], temp1[3]);
     __syncthreads();
-    if (warp_id == 0) {
+    if (warp_id == 0 && lane_id <= 15) {
 
         float x, y, z, w;
         x = model->temp[0][colOffset] + model->biass[0][colOffset];
@@ -223,6 +235,77 @@ __device__ static void onekernel_fuse_opt_v2_no_float4_with_adduw_global(
         y = model->temp[1][colOffset] + model->biass[1][colOffset];
         z = model->temp[2][colOffset] + model->biass[2][colOffset];
         w = model->temp[3][colOffset] + model->biass[3][colOffset];
+
+        x = sigmoid(x);
+        y = tanh(y);
+        w = sigmoid(w);
+        z = sigmoid(z + 1.0000f) * output->state_c[colOffset];
+        output->state_c[colOffset] = fma(x, y, z);
+        output->state_h[colOffset] = (tanh(output->state_c[colOffset])) * w;
+    }
+}
+
+template <int kColumsPerBlock, int kHiddenSize, int kInputSize,
+          int kThreadNumPerBlock>
+__device__ static void onekernel_fuse_opt_v2_float4_with_adduw_global(
+    dim3 blockIdx1, WaveInputParams *__restrict__ input,
+    WaveModelParams *__restrict__ model,
+    WaveOutputParams *__restrict__ output) {
+
+    //__shared__ float4 nndense_output1[32];
+
+    const int warp_id = threadIdx.x >> 5;
+    const int lane_id = threadIdx.x & 0x1f;
+    const int colOffset = blockIdx1.x * kColumsPerBlock + lane_id;
+    // nndense_output1[lane_id] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
+
+    model->temp_f4[colOffset].x = 0.0;
+    model->temp_f4[colOffset].y = 0.0;
+    model->temp_f4[colOffset].z = 0.0;
+    model->temp_f4[colOffset].w = 0.0;
+    float temp1[4] = {0.0000f, 0.0000f, 0.0000f, 0.0000f};
+
+    const int ROWS = kInputSize / (kThreadNumPerBlock / 32);
+    int vectorRow = ROWS * warp_id;
+    int kStart =
+        vectorRow * kHiddenSize + blockIdx1.x * kColumsPerBlock + lane_id;
+    int kEnd = kStart + ROWS * kHiddenSize;
+    // This loop was unrolled 4 times in SASS code, I tested other unroll
+    // parameters, e.g. 2, 4,6, 8, 4 is the best one
+    //#pragma unroll 4
+    for (; kStart < kEnd; kStart += kHiddenSize, ++vectorRow) {
+        // int idx_weight = kStart + i * 256;
+        const float data = input->input_i[vectorRow];
+        const float data2 = input->input_h[vectorRow];
+        float4 w_f4 = model->weight_w[kStart];
+        temp1[0] = fma(w_f4.x, data, temp1[0]);
+        temp1[1] = fma(w_f4.y, data, temp1[1]);
+        temp1[2] = fma(w_f4.z, data, temp1[2]);
+        temp1[3] = fma(w_f4.w, data, temp1[3]);
+
+        float4 u_f4 = model->weight_u[kStart];
+        temp1[0] = fma(u_f4.x, data2, temp1[0]);
+        temp1[1] = fma(u_f4.y, data2, temp1[1]);
+        temp1[2] = fma(u_f4.z, data2, temp1[2]);
+        temp1[3] = fma(u_f4.w, data2, temp1[3]);
+    }
+
+    __syncthreads();
+    atomicAdd(&(model->temp_f4[colOffset].x), temp1[0]);
+    atomicAdd(&(model->temp_f4[colOffset].y), temp1[1]);
+    atomicAdd(&(model->temp_f4[colOffset].z), temp1[2]);
+    atomicAdd(&(model->temp_f4[colOffset].w), temp1[3]);
+    __syncthreads();
+
+    if (warp_id == 0) {
+
+        float x, y, z, w;
+        float4 bias_t = model->bias[colOffset];
+        float4 gemv_res = model->temp_f4[colOffset];
+        x = gemv_res.x + bias_t.x;
+        y = gemv_res.y + bias_t.y;
+        z = gemv_res.z + bias_t.z;
+        w = gemv_res.w + bias_t.w;
 
         x = sigmoid(x);
         y = tanh(y);

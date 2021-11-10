@@ -11,6 +11,7 @@ struct WaveModelParams {
     float4 weight_w[HIDDEN_SIZE * HIDDEN_SIZE];
     float4 weight_u[HIDDEN_SIZE * HIDDEN_SIZE];
     float4 bias[HIDDEN_SIZE];
+    float4 temp_f4[HIDDEN_SIZE];
     
     float weight_ws[4][HIDDEN_SIZE * HIDDEN_SIZE];
     float weight_us[4][HIDDEN_SIZE * HIDDEN_SIZE];

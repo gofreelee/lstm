@@ -25,6 +25,7 @@ int main(int argc, char *argv[]) {
                          S_IRUSR | S_IWUSR | S_IRGRP | S_IROTH);
     std::vector<LSTMNetHostParams> params =
         readInputParamsFuse(fd, hidden_size, batch_size, num_layer, num_step);
+    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
 
     float *kExpected = readExpectedResult(result_fd, hidden_size);
     std::shared_ptr<LSTM100_10> impl(new LSTM100_10());

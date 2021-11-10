@@ -26,6 +26,7 @@ int main(int argc, char *argv[]) {
     std::vector<LSTMNetHostParams> params =
         readInputParamsFuse(fd, hidden_size, batch_size, num_layer, num_step);
 
+    cudaDeviceSetCacheConfig(cudaFuncCachePreferL1);
     float *kExpected = readExpectedResult(result_fd, hidden_size);
     std::shared_ptr<LSTM100_10> impl(new LSTM100_10());
     int nDevices;
@@ -56,6 +57,7 @@ int main(int argc, char *argv[]) {
         long long once_time = (time_end.tv_sec - time_start.tv_sec) * 1000000 +
                               time_end.tv_usec - time_start.tv_usec;
     }
+    walltimes = 0;
     for (int i = 0; i < kLoop; i++) {
         // Different, input/output memcpy time
         gettimeofday(&time_start, NULL);

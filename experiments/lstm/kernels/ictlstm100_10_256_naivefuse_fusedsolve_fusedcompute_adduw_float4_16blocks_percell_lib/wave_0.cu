@@ -5,7 +5,7 @@ __global__ void __launch_bounds__(256, 1)
           WaveOutputParams *__restrict__ output) {
     switch (blockIdx.x >> 4) {
     case 0:
-        call_onekernel_naivefuse_fusedsolve_fusedcompute_adduw_16blocks_eachcell(
+        call_onekernel_naivefuse_fusedsolve_fusedcompute_adduw_16blocks_eachcell_float4(
             0 * LstmScaleParams::kCellNumber10 + 0, 0,
             0 * LstmScaleParams::kCellNumber10 + 0, 16,
             LstmScaleParams::kHiddenSize256, LstmScaleParams::kInputSize256,
